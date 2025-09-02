@@ -12,6 +12,7 @@ from playwright.async_api import async_playwright, Page, TimeoutError, BrowserCo
 from src.agent.product_evaluator import ProductEvaluator
 from src.config import STATE_FILE, RUN_HEADLESS, USE_EDGE, RUNNING_IN_DOCKER, API_URL_PATTERN, DETAIL_API_URL_PATTERN, SKIP_AI_ANALYSIS
 from src.spider.parsers import parse_page, pares_product_detail_and_seller_info, pares_seller_detail_info
+from src.task.result import save_task_result
 from src.task.task import Task
 from src.utils.utils import random_sleep, safe_get
 
@@ -45,21 +46,6 @@ def get_history(output_filename: str):
         print(f"LOG: 输出文件 {output_filename} 不存在，将创建新文件。")
 
     return processed_ids
-
-
-async def save_to_jsonl(data_record: dict):
-    """将一个包含商品和卖家信息的完整记录追加保存到 .jsonl 文件。"""
-    output_dir = "jsonl"
-    os.makedirs(output_dir, exist_ok=True)
-    keyword = data_record.get('搜索关键字')
-    filename = os.path.join(output_dir, f"{keyword.replace(' ', '_')}_full_data.jsonl")
-    try:
-        with open(filename, "a", encoding="utf-8") as f:
-            f.write(json.dumps(data_record, ensure_ascii=False) + "\n")
-        return True
-    except IOError as e:
-        print(f"写入文件 {filename} 出错: {e}")
-        return False
 
 
 def get_max_page(page_tiny: str) -> int:
@@ -131,9 +117,11 @@ async def process_product(task: Task, product_data, base_data, context: BrowserC
 
     seller_info = await process_seller(seller_info, context)
 
+    keyword = task.get('keyword')
+
     final_record = {
         "爬取时间": datetime.now().isoformat(),
-        "搜索关键字": task.get('keyword'),
+        "搜索关键字": keyword,
         "任务名称": task.get('task_name', 'Untitled Task'),
         "商品信息": product_data,
         "卖家信息": seller_info
@@ -144,7 +132,7 @@ async def process_product(task: Task, product_data, base_data, context: BrowserC
         # product_evaluator = ProductEvaluator()
         pass
     print('写入数据')
-    await save_to_jsonl(final_record)
+    await save_task_result(keyword, final_record)
 
 
 async def process_seller(seller_info: dict, context: BrowserContext):
@@ -311,15 +299,13 @@ async def main(debug: bool = False):
     active_tasks = []
 
     if args.task_id:
-        if 0 <= args.task_id < len(tasks):
-            task = tasks[args.task_id]
-            if task.get('enabled', False):
-                active_tasks.append(task)
-            else:
-                print(f"任务 '{args.task_name}' 已被禁用，跳过执行。")
-        else:
+        task = next((it for it in tasks if it['task_id'] == args.task_id), None)
+        if not task:
             print(f"错误：在配置文件中未找到id为 '{args.task_id}' 的任务。")
-            return
+            sys.exit(f"错误: 任务 '{args.task_id}' 不存在。")
+
+        active_tasks.append(task)
+
     else:
         active_tasks = [task for task in tasks if task.get('enabled', False)]
 
