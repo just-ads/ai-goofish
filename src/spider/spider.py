@@ -76,7 +76,7 @@ async def check_anti_spider_dialog(page: Page):
     for selector, dialog_type in dialogs:
         try:
             await page.locator(selector).wait_for(state='visible', timeout=2000)
-            print(f"检测到 {dialog_type} 反爬虫验证弹窗")  # anti_spider
+            print(f"检测到 {dialog_type} 反爬虫验证弹窗")
             return True
         except TimeoutError:
             pass
@@ -92,7 +92,8 @@ async def process_page(task: Task, page_data: dict, processed_ids: set[str], con
     print(f'共有 {len(product_basic_info)} 个商品')
 
     for i, item in enumerate(product_basic_info):
-        if i > 1:
+        if os.getenv('DEBUG') and i > 1:
+            await detail_page.close()
             return
         product_id = item.get('商品ID')
         if product_id in processed_ids:
@@ -100,7 +101,6 @@ async def process_page(task: Task, page_data: dict, processed_ids: set[str], con
 
         product_url = item.get('商品链接')
 
-        # 为每个商品创建新的响应监听器
         async with detail_page.expect_response(lambda r: DETAIL_API_URL_PATTERN in r.url, timeout=25000) as detail_info:
             await detail_page.goto(product_url, wait_until="domcontentloaded", timeout=25000)
 
@@ -109,6 +109,8 @@ async def process_page(task: Task, page_data: dict, processed_ids: set[str], con
                 if detail_response.ok:
                     await process_product(task, await detail_response.json(), item, context)
                     processed_ids.add(product_id)  # 处理成功后添加到已处理集合
+            except ValidationError as e:
+                raise e
             except TimeoutError:
                 print(f"超时：无法获取商品 {product_id} 的详细信息")
             except Exception as e:
@@ -123,18 +125,9 @@ async def process_product(task: Task, product_data, base_data, context: BrowserC
     ret_string = str(safe_get(product_data, 'ret', default=[]))
 
     if "FAIL_SYS_USER_VALIDATE" in ret_string:
-        print("\n==================== CRITICAL BLOCK DETECTED ====================")
-        print("检测到闲鱼反爬虫验证 (FAIL_SYS_USER_VALIDATE)，程序将终止。")
-        long_sleep_duration = random.randint(300, 600)
-        print(f"为避免账户风险，将执行一次长时间休眠 ({long_sleep_duration} 秒) 后再退出...")
-        await asyncio.sleep(long_sleep_duration)
-        print("长时间休眠结束，现在将安全退出。")
-        print("===================================================================")
-        raise ValidationError('检测到闲鱼反爬虫验证 (FAIL_SYS_USER_VALIDATE)，程序终止。')
+        raise ValidationError('FAIL_SYS_USER_VALIDATE')
 
     product_data, seller_info = pares_product_detail_and_seller_info(product_data, base_data)
-
-    # print(product_data, seller_info)
 
     seller_info = await process_seller(seller_info, context)
 
@@ -147,8 +140,9 @@ async def process_product(task: Task, product_data, base_data, context: BrowserC
     }
 
     if not SKIP_AI_ANALYSIS:
-        pass
+        # todo AI分析
         # product_evaluator = ProductEvaluator()
+        pass
     print('写入数据')
     await save_to_jsonl(final_record)
 
@@ -173,10 +167,10 @@ async def start_task(task: Task):
     max_price = task.get('max_price')
 
     output_filename = os.path.join("jsonl", f"{keyword.replace(' ', '_')}_full_data.jsonl")
-
     has_state_file = os.path.exists(STATE_FILE)
 
     processed_ids = get_history(output_filename)
+    last_processed_count = len(processed_ids)
 
     async with async_playwright() as p:
         if USE_EDGE:
@@ -187,12 +181,12 @@ async def start_task(task: Task):
             else:
                 browser = await p.chromium.launch(headless=RUN_HEADLESS, channel="chrome")
 
-        context = await  browser.new_context(
+        browser_context = await browser.new_context(
             storage_state=STATE_FILE if has_state_file else None,
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
         )
 
-        page = await context.new_page()
+        page = await browser_context.new_page()
 
         try:
             print("LOG: 步骤 1 - 直接导航到搜索结果页...")
@@ -204,7 +198,7 @@ async def start_task(task: Task):
             await page.wait_for_selector('text=新发布', timeout=15000)
 
             if await check_anti_spider_dialog(page):
-                raise ValidationError('检测到验证弹窗')
+                raise ValidationError('反爬虫验证弹窗')
 
             try:
                 await page.click("div[class*='closeIconBg']", timeout=3000)
@@ -260,7 +254,7 @@ async def start_task(task: Task):
                         await page_btn[page_num - 1].click()
                         current_response = await response_info.value
                         data = await current_response.json()
-                        await process_page(task, data, processed_ids, context)
+                        await process_page(task, data, processed_ids, browser_context)
                         print(f"\n--- 第 {page_num}/{max_pages} 页处理完成 ---")
                     except ValidationError as e:
                         raise e
@@ -269,24 +263,36 @@ async def start_task(task: Task):
                         print(f'\n--- 第 {page_num}/{max_pages} 页处理失败 ---')
 
 
-        except ValidationError:
+        except ValidationError as e:
+            print("\n==================== CRITICAL BLOCK DETECTED ====================")
+            print(f"检测到闲鱼反爬虫验证 ({e})，程序将终止。")
+            long_sleep_duration = random.randint(300, 600)
+            print(f"为避免账户风险，将执行一次长时间休眠 ({long_sleep_duration} 秒) 后再退出...")
+            await asyncio.sleep(long_sleep_duration)
+            print("长时间休眠结束，现在将安全退出。")
+            print("===================================================================")
             print("触发闲鱼反爬虫机制，将关闭浏览器")
             await browser.close()
         except Exception as e:
             print(f'程序发生错误 {e}')
             await browser.close()
 
+    return len(processed_ids) - last_processed_count
 
-def main():
+
+async def main(debug: bool = False):
     parser = argparse.ArgumentParser(
         description="闲鱼商品监控脚本，支持多任务配置和实时AI分析。",
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    parser.add_argument("--debug-limit", type=int, default=0, help="调试模式：每个任务仅处理前 N 个新商品（0 表示无限制）")
+    parser.add_argument("--debug", type=bool, default=False, help="调试模式：每个任务仅处理每页前 2 个新商品")
     parser.add_argument("--tasks", type=str, default="tasks.json", help="指定任务配置文件路径（默认为 tasks.json）")
     parser.add_argument("--task-id", type=int, help="运行指定id的单个任务 (用于定时任务调度)")
 
     args = parser.parse_args()
+
+    if args.debug or debug:
+        os.environ["DEBUG"] = "1"
 
     if not os.path.exists(STATE_FILE):
         sys.exit(f"错误: 登录状态文件 '{STATE_FILE}' 不存在。请先运行 login.py 生成。")
@@ -300,7 +306,7 @@ def main():
         with open(args.tasks, 'r', encoding='utf-8') as f:
             tasks = json.load(f)
     except (json.JSONDecodeError, IOError) as e:
-        sys.exit(f"错误: 读取或解析配置文件 '{args.config}' 失败: {e}")
+        sys.exit(f"错误: 读取或解析配置文件 '{args.tasks}' 失败: {e}")
 
     active_tasks = []
 
@@ -322,9 +328,21 @@ def main():
         return
 
     coroutines = []
-    for task_conf in active_tasks:
-        print(f"-> 任务 '{task_conf['task_name']}' 已加入执行队列。")
-        # coroutines.append(scrape_xianyu(task_config=task_conf, debug_limit=args.debug_limit))
+    for task in active_tasks:
+        print(f"-> 任务 '{task['task_name']}' 已加入执行队列。")
+        coroutines.append(start_task(task))
 
-    # 并发执行所有任务
-    # results = await asyncio.gather(*coroutines, return_exceptions=True)
+    results = await asyncio.gather(*coroutines, return_exceptions=True)
+
+    print("\n--- 所有任务执行完毕 ---")
+
+    for i, result in enumerate(results):
+        task_name = active_tasks[i]['task_name']
+        if isinstance(result, Exception):
+            print(f"任务 '{task_name}' 因异常而终止: {result}")
+        else:
+            print(f"任务 '{task_name}' 正常结束，本次运行共处理了 {result} 个新商品。")
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
