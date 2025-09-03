@@ -16,8 +16,8 @@ API_URL_PATTERN = "h5api.m.goofish.com/h5/mtop.taobao.idlemtopsearch.pc.search"
 DETAIL_API_URL_PATTERN = "h5api.m.goofish.com/h5/mtop.taobao.idle.pc.detail"
 
 # --- User ---
-WEB_USERNAME = os.getenv("WEB_USERNAME")
-WEB_PASSWORD = os.getenv("WEB_PASSWORD")
+WEB_USERNAME = os.getenv("WEB_USERNAME", 'admin')
+WEB_PASSWORD = os.getenv("WEB_PASSWORD", 'admin')
 # SECRET_KEY = os.getenv("SECRET_KEY")
 
 # --- Environment Variables ---

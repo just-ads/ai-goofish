@@ -1,6 +1,4 @@
-import asyncio
-
-from src.spider.spider import main
+from src.server.server import start_sever
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    start_sever()

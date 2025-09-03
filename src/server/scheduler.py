@@ -115,7 +115,7 @@ async def run_task(task_id: int, task_name: str):
             running_tasks[task_id] = True
 
             process = await asyncio.create_subprocess_exec(
-                sys.executable, "-u", "start.py", "--task-id", str(task_id),
+                sys.executable, "-u", "start_spider.py", "--task-id", str(task_id),
                 start_new_session=True
             )
 
