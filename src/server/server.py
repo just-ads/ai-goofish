@@ -1,4 +1,5 @@
 import hashlib
+import json
 import os
 import secrets
 from datetime import datetime, timedelta
@@ -15,7 +16,7 @@ from jose import JWTError, jwt
 from src.config import WEB_USERNAME, WEB_PASSWORD, SERVER_PORT
 from src.server.scheduler import load_all_tasks, stop_all_tasks, start_task, update_task_job, run_task, stop_task
 from src.task.result import get_task_result
-from src.task.task import get_all_tasks, add_task, Task, update_task, get_task
+from src.task.task import get_all_tasks, add_task, Task, update_task, get_task, remove_task
 
 
 class TaskRequest(BaseModel):
@@ -126,9 +127,23 @@ async def api_create_task(req: TaskRequest):
         raise HTTPException(status_code=500, detail=f"创建失败 {e}")
 
 
-@app.post("/api/tasks/update", response_model=dict, dependencies=[Depends(verify_token)])
-async def api_update_task(req: TaskRequest):
+@app.delete("/api/tasks/delete/{task_id}", response_model=dict, dependencies=[Depends(verify_token)])
+async def api_delete_task(task_id: int):
     try:
+        # 调用删除任务的函数
+        result = await remove_task(task_id)
+        if result:
+            return success_response("任务删除成功")
+        else:
+            raise HTTPException(status_code=404, detail=f"任务 {task_id} 未找到")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"删除任务失败: {e}")
+
+
+@app.post("/api/tasks/update/{task_id}", response_model=dict, dependencies=[Depends(verify_token)])
+async def api_update_task(task_id: int, req: TaskRequest):
+    try:
+        req['task_id'] = task_id
         new_task = await update_task(req)
         await update_task_job(new_task)
         return success_response("任务更新成功", new_task)
@@ -167,6 +182,31 @@ async def api_get_task_results(task_id: int, page: int = 1, limit: int = 20, rec
         return success_response("结果获取成功", result)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"结果获取失败: {e}")
+
+
+# --------------- 保存/删除 xianyu_state ----------------
+@app.post("/api/state/save", dependencies=[Depends(verify_token)])
+async def api_save_xianyu_state(state_data: dict):
+    try:
+        # 将状态数据保存为 JSON 文件
+        with open('xianyu_state.json', 'w', encoding='utf-8') as f:
+            json.dump(state_data, f, ensure_ascii=False, indent=4)
+        return success_response("xianyu_state 保存成功")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"保存失败 {e}")
+
+
+@app.delete("/api/state/delete", dependencies=[Depends(verify_token)])
+async def api_delete_xianyu_state():
+    try:
+        # 删除 xianyu_state 文件
+        if os.path.exists('xianyu_state.json'):
+            os.remove('xianyu_state.json')
+            return success_response("xianyu_state 删除成功")
+        else:
+            raise HTTPException(status_code=404, detail="xianyu_state 文件未找到")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"删除失败 {e}")
 
 
 # --------------- 状态相关 ----------------
