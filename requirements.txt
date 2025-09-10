@@ -1,0 +1,11 @@
+aiofiles~=24.1.0
+openai~=1.107.0
+uvicorn~=0.35.0
+fastapi~=0.116.1
+pydantic~=2.11.7
+starlette~=0.47.3
+python-jose~=3.5.0
+APScheduler~=3.11.0
+playwright~=1.55.0
+python-dotenv~=1.1.1
+python-multipart~=0.0.20

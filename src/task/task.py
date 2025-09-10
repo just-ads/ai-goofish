@@ -1,13 +1,13 @@
 import json
 
-from typing import Optional, Dict, List
-
+from typing import Optional, List
+from pydantic import BaseModel
 from src.config import TASKS_FILE
 from src.task.result import remove_task_result
 from src.utils.file_operator import FileOperator
 
 
-class Task(Dict):
+class Task(BaseModel):
     task_id: int
     task_name: str
     enabled: bool
@@ -20,7 +20,7 @@ class Task(Dict):
     cron: Optional[str] = None
 
 
-class TaskUpdate(Dict):
+class TaskUpdate(BaseModel):
     task_name: Optional[str] = None
     enabled: Optional[bool] = None
     keyword: Optional[str] = None

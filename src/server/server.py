@@ -13,7 +13,7 @@ from starlette.staticfiles import StaticFiles
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 
-from src.config import WEB_USERNAME, WEB_PASSWORD, SERVER_PORT
+from src.config import WEB_USERNAME, WEB_PASSWORD, SERVER_PORT, STATE_FILE
 from src.server.scheduler import load_all_tasks, stop_all_tasks, start_task, update_task_job, run_task, stop_task
 from src.task.result import get_task_result
 from src.task.task import get_all_tasks, add_task, Task, update_task, get_task, remove_task
@@ -28,6 +28,10 @@ class TaskRequest(BaseModel):
     max_price: Optional[str] = None
     max_pages: int = 3
     cron: Optional[str] = None
+
+
+class GoofishState(BaseModel):
+    content: str
 
 
 async def lifespan(app: FastAPI):
@@ -184,27 +188,28 @@ async def api_get_task_results(task_id: int, page: int = 1, limit: int = 20, rec
         raise HTTPException(status_code=500, detail=f"结果获取失败: {e}")
 
 
-# --------------- 保存/删除 xianyu_state ----------------
-@app.post("/api/state/save", dependencies=[Depends(verify_token)])
-async def api_save_xianyu_state(state_data: dict):
+# --------------- 保存/删除 goofish_state ----------------
+@app.post("/api/goofish/state/save", dependencies=[Depends(verify_token)])
+async def api_save_goofish_state(data: GoofishState):
     try:
-        # 将状态数据保存为 JSON 文件
-        with open('xianyu_state.json', 'w', encoding='utf-8') as f:
-            json.dump(state_data, f, ensure_ascii=False, indent=4)
-        return success_response("xianyu_state 保存成功")
+        json.loads(data.content)
+        with open(STATE_FILE, 'w', encoding='utf-8') as f:
+            f.write(data.content)
+        return success_response("保存成功")
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="提供的内容不是有效的JSON格式。")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"保存失败 {e}")
 
 
-@app.delete("/api/state/delete", dependencies=[Depends(verify_token)])
-async def api_delete_xianyu_state():
+@app.delete("/api/goofish/state/delete", dependencies=[Depends(verify_token)])
+async def api_delete_goofish_state():
     try:
-        # 删除 xianyu_state 文件
-        if os.path.exists('xianyu_state.json'):
-            os.remove('xianyu_state.json')
-            return success_response("xianyu_state 删除成功")
+        if os.path.exists(STATE_FILE):
+            os.remove(STATE_FILE)
+            return success_response("删除成功")
         else:
-            raise HTTPException(status_code=404, detail="xianyu_state 文件未找到")
+            raise HTTPException(status_code=404, detail="文件未找到")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"删除失败 {e}")
 
@@ -212,7 +217,7 @@ async def api_delete_xianyu_state():
 # --------------- 状态相关 ----------------
 @app.get('/api/status/goofish', dependencies=[Depends(verify_token)])
 async def api_get_goofish_status():
-    return success_response("状态获取成功", os.path.exists("xianyu_state.json"))
+    return success_response("状态获取成功", os.path.exists(STATE_FILE))
 
 
 def start_sever():
