@@ -27,11 +27,7 @@ def _is_process_alive(pid: Optional[int]) -> bool:
     try:
         os.kill(pid, 0)
         return True
-    except ProcessLookupError:
-        return False
-    except PermissionError:
-        return True
-    except Exception:
+    except (ProcessLookupError, PermissionError):
         return False
 
 
@@ -51,7 +47,9 @@ def terminate_process(task_id: int) -> bool:
                 os.kill(pid, signal.CTRL_BREAK_EVENT)
             except Exception:
                 subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"],
-                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                               stdout=subprocess.DEVNULL,
+                               stderr=subprocess.DEVNULL,
+                               check=True)
         else:
             try:
                 pgid = os.getpgid(pid)
@@ -60,8 +58,6 @@ def terminate_process(task_id: int) -> bool:
                 os.kill(pid, signal.SIGTERM)
     except ProcessLookupError:
         pass
-    except Exception as e:
-        print(f"终止进程时出错: {e}")
     finally:
         running_tasks.pop(task_id, None)
         scraper_processes.pop(task_id, None)
@@ -69,33 +65,26 @@ def terminate_process(task_id: int) -> bool:
     return was_running
 
 
-async def load_all_tasks():
+async def initialize_task_scheduler():
+    """初始化并启动任务调度器，加载所有启用的任务"""
     print("正在加载定时任务调度器...")
-    try:
-        tasks = await get_all_tasks()
-        enabled_tasks = [t for t in tasks if t.get('enabled')]
-        for task in enabled_tasks:
-            schedule_task(task)
-    except Exception as e:
-        print(f"加载任务时出错: {e}")
+    tasks = await get_all_tasks()
+    enabled_tasks = [t for t in tasks if t.get('enabled')]
+    for task in enabled_tasks:
+        add_task_to_scheduler(task)
+    print("所有任务已添加")
 
     if not scheduler.running:
         scheduler.start()
+    print("调度器已启动")
 
 
-def stop_all_tasks():
+def shutdown_task_scheduler():
+    """关闭任务调度器并终止所有正在执行的任务"""
     print("正在停止所有定时任务...")
-
-    try:
-        scheduler.remove_all_jobs()
-    except Exception:
-        pass
-
+    scheduler.remove_all_jobs()
     if scheduler.running:
-        try:
-            scheduler.shutdown()
-        except Exception as e:
-            print(f"关闭调度器时出错: {e}")
+        scheduler.shutdown()
 
     for task_id in list(set(list(running_tasks.keys()) + list(scraper_processes.keys()))):
         terminate_process(task_id)
@@ -103,26 +92,26 @@ def stop_all_tasks():
     print("所有定时任务已停止")
 
 
-def is_running(task_id: int) -> bool:
+def is_task_running(task_id: int) -> bool:
     if running_tasks.get(task_id, False):
         return True
     pid = scraper_processes.get(task_id)
     return _is_process_alive(pid)
 
 
-def get_all_running() -> dict[int, bool]:
+def get_all_running_tasks() -> dict[int, bool]:
     return running_tasks.copy()
 
 
 async def run_task(task_id: int, task_name: str):
     print(f"定时任务触发: 正在为任务 '{task_name}' 启动爬虫...")
 
-    if is_running(task_id):
+    if is_task_running(task_id):
         print(f"任务 '{task_name}' 已在运行中，跳过此次执行")
         return
 
-    async with semaphore:
-        try:
+    try:
+        async with semaphore:
             running_tasks[task_id] = True
 
             process = await asyncio.create_subprocess_exec(
@@ -131,30 +120,39 @@ async def run_task(task_id: int, task_name: str):
             )
 
             scraper_processes[task_id] = process.pid
-
             return_code = await process.wait()
-            print(f"任务 '{task_name}' 执行完成，退出码: {return_code}")
 
-        except Exception as e:
-            print(f"启动定时任务 '{task_name}' 时发生错误: {e}")
-        finally:
-            running_tasks.pop(task_id, None)
-            scraper_processes.pop(task_id, None)
+            print(f"任务 '{task_name}' 执行完成，退出码: {return_code}")
+    finally:
+        running_tasks.pop(task_id, None)
+        scraper_processes.pop(task_id, None)
 
 
 def stop_task(task_id: int):
+    """停止指定任务：从调度器中移除并终止进程。"""
     job_id = f'task_{task_id}'
     try:
         scheduler.remove_job(job_id)
     except JobLookupError:
         pass
-    except Exception as e:
-        print(f"移除调度任务 {job_id} 时出错: {e}")
 
-    terminate_process(task_id)
+    # 终止正在运行的进程
+    was_running = terminate_process(task_id)
+    print(f"任务 {task_id} 已停止{'（包括终止运行中的进程）' if was_running else ''}")
 
 
-def schedule_task(task: Task):
+def remove_task_from_scheduler(task_id: int):
+    """从调度器中移除任务并终止"""
+    job_id = f'task_{task_id}'
+    try:
+        scheduler.remove_job(job_id)
+    except JobLookupError:
+        pass
+    finally:
+        terminate_process(task_id)
+
+
+def add_task_to_scheduler(task: Task):
     task_id = task.get('task_id')
     task_name = task.get('task_name')
     cron_str = task.get('cron')
@@ -163,40 +161,33 @@ def schedule_task(task: Task):
     if not (is_enabled and cron_str):
         return
 
-    try:
-        trigger = CronTrigger.from_crontab(cron_str)
-        scheduler.add_job(
-            run_task,
-            trigger=trigger,
-            args=[task_id, task_name],
-            id=f"task_{task_id}",
-            name=f"Scheduled: {task_name}",
-            replace_existing=True,
-            coalesce=True,
-            misfire_grace_time=60
-        )
-        print(f"  -> 已为任务 '{task_name}' 添加定时规则: '{cron_str}'")
-    except ValueError as e:
-        print(f"  -> [警告] 任务 '{task_name}' 的 Cron 表达式 '{cron_str}' 无效，已跳过: {e}")
-    except Exception as e:
-        print(f"  -> [错误] 添加任务 '{task_name}' 失败: {e}")
+    trigger = CronTrigger.from_crontab(cron_str)
+    scheduler.add_job(
+        run_task,
+        trigger=trigger,
+        args=[task_id, task_name],
+        id=f"task_{task_id}",
+        name=f"Scheduled: {task_name}",
+        replace_existing=True,
+        coalesce=True,
+        misfire_grace_time=60
+    )
+    print(f"  -> 已为任务 '{task_name}' 添加定时规则: '{cron_str}'")
 
 
-async def reschedule_task(task: Task):
+async def update_scheduled_task(task: Task):
     task_id = task.get('task_id')
     job_id = f'task_{task_id}'
 
-    was_running = is_running(task_id)
+    was_running = is_task_running(task_id)
     terminate_process(task_id)
 
     try:
         scheduler.remove_job(job_id)
     except JobLookupError:
         pass
-    except Exception as e:
-        print(f"移除旧任务 {job_id} 时出错: {e}")
 
-    schedule_task(task)
+    add_task_to_scheduler(task)
 
     if was_running:
         await run_task(task_id, task.get('task_name'))

@@ -14,7 +14,8 @@ from starlette.responses import HTMLResponse, FileResponse
 from starlette.staticfiles import StaticFiles
 
 from src.config import WEB_USERNAME, WEB_PASSWORD, SERVER_PORT, STATE_FILE, SECRET_KEY_FILE
-from src.server.scheduler import load_all_tasks, stop_all_tasks, schedule_task, reschedule_task, run_task, stop_task, is_running, get_all_running
+from src.server.scheduler import initialize_task_scheduler, shutdown_task_scheduler, add_task_to_scheduler, update_scheduled_task, run_task, remove_task_from_scheduler, \
+    is_task_running, get_all_running_tasks, stop_task
 from src.task.result import get_task_result
 from src.task.task import get_all_tasks, add_task, update_task, get_task, remove_task, TaskUpdate, TaskWithoutID
 
@@ -25,12 +26,12 @@ class GoofishState(BaseModel):
 
 async def lifespan(app: FastAPI):
     print("Web服务器正在启动，正在加载所有任务...")
-    await load_all_tasks()
+    await initialize_task_scheduler()
 
     yield
 
     print("Web服务器正在关闭，正在终止所有爬虫进程...")
-    stop_all_tasks()
+    shutdown_task_scheduler()
 
 
 def load_or_create_secret_key():
@@ -104,42 +105,54 @@ async def api_get_tasks():
     try:
         tasks = await get_all_tasks()
         for task in tasks:
-            task['running'] = is_running(task.get('task_id'))
+            task['running'] = is_task_running(task.get('task_id'))
         return success_response("任务获取成功", tasks)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"读取任务配置时发生错误: {e}")
+    except Exception:
+        raise HTTPException(status_code=500, detail="读取任务配置时发生错误")
 
 
 @app.post("/api/tasks/create", response_model=dict, dependencies=[Depends(verify_token)])
 async def api_create_task(req: TaskWithoutID):
     try:
         task = await add_task(req)
-        schedule_task(task)
+        if task.get('enabled'):
+            add_task_to_scheduler(task)
         return success_response("任务创建成功", task)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"创建失败 {e}")
+    except Exception:
+        raise HTTPException(status_code=500, detail="创建失败")
 
 
-@app.delete("/api/tasks/delete/{task_id}", response_model=dict, dependencies=[Depends(verify_token)])
-async def api_delete_task(task_id: int):
+@app.post("/api/tasks/update", response_model=dict, dependencies=[Depends(verify_token)])
+async def api_update_task(req: TaskUpdate):
     try:
-        task = await remove_task(task_id)
-        if task:
-            return success_response("任务删除成功")
+        old_task = await get_task(req.task_id)
+        new_task = await update_task(req)
+
+        if new_task.get('enabled'):
+            # 如果任务之前是禁用状态，现在启用了，添加到调度器
+            if not old_task.get('enabled'):
+                add_task_to_scheduler(new_task)
+            else:
+                # 如果任务之前就是启用的，更新调度器中的任务
+                await update_scheduled_task(new_task)
         else:
-            raise HTTPException(status_code=404, detail=f"任务 {task_id} 未找到")
+            # 如果任务被禁用，从调度器中移除
+            remove_task_from_scheduler(req.task_id)
+
+        return success_response("任务更新成功", new_task)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"删除任务失败: {e}")
+        print(f"更新任务失败: {e}")
+        raise HTTPException(status_code=500, detail="更新任务失败")
 
 
 @app.post("/api/tasks/update", response_model=dict, dependencies=[Depends(verify_token)])
 async def api_update_task(req: TaskUpdate):
     try:
         new_task = await update_task(req)
-        await reschedule_task(new_task)
+        await update_scheduled_task(new_task)
         return success_response("任务更新成功", new_task)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"更新任务失败: {e}")
+    except Exception:
+        raise HTTPException(status_code=500, detail="更新任务失败")
 
 
 @app.post("/api/tasks/run/{task_id}", response_model=dict, dependencies=[Depends(verify_token)])
@@ -147,43 +160,43 @@ async def api_run_task(task_id: int):
     try:
         task = await get_task(task_id)
         if not task:
-            raise HTTPException(status_code=404, detail=f"任务 {task_id} 未找到")
+            raise HTTPException(status_code=404, detail="任务未找到")
 
-        if is_running(task_id):
+        if is_task_running(task_id):
             return success_response("任务已在运行中", {"task_id": task_id, "running": True})
 
         asyncio.create_task(run_task(task['task_id'], task['task_name']))
 
         return success_response("任务启动中", {"task_id": task_id, "running": True})
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"任务运行失败: {e}")
+    except Exception:
+        raise HTTPException(status_code=500, detail="任务运行失败")
 
 
-@app.post("/api/tasks/stop/{task_id}", response_model=dict, dependencies=[Depends(verify_token)])
+@app.post('/api/tasks/stop/{task_id}', response_model=dict, dependencies=[Depends(verify_token)])
 async def api_stop_task(task_id: int):
     try:
         stop_task(task_id)
-        return success_response("任务停止成功", {"task_id": task_id, "running": False})
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"任务停止失败: {e}")
+        return success_response("任务停止成功")
+    except Exception:
+        raise HTTPException(status_code=500, detail="任务停止失败")
 
 
 @app.get('/api/tasks/status', response_model=dict, dependencies=[Depends(verify_token)])
 async def api_get_tasks_status():
     try:
-        data = get_all_running()
+        data = get_all_running_tasks()
         return success_response('请求成功', data)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"任务状态检测失败: {e}")
+    except Exception:
+        raise HTTPException(status_code=500, detail="任务状态检测失败")
 
 
 @app.get('/api/tasks/status/{task_id}', response_model=dict, dependencies=[Depends(verify_token)])
 async def api_get_task_status(task_id: int):
     try:
-        running = is_running(task_id)
+        running = is_task_running(task_id)
         return success_response("任务状态检测", {"running": running})
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"任务状态检测失败: {e}")
+    except Exception:
+        raise HTTPException(status_code=500, detail="任务状态检测失败")
 
 
 @app.get("/api/results/{task_id}", dependencies=[Depends(verify_token)])
@@ -191,11 +204,11 @@ async def api_get_task_results(task_id: int, page: int = 1, limit: int = 20, rec
     try:
         task = await get_task(task_id)
         if not task:
-            raise HTTPException(status_code=404, detail=f"任务 {task_id} 未找到")
+            raise HTTPException(status_code=404, detail="任务未找到")
         result = await get_task_result(task['keyword'], page, limit, recommended_only, sort_by)
         return success_response("结果获取成功", result)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"结果获取失败: {e}")
+    except Exception:
+        raise HTTPException(status_code=500, detail="结果获取失败")
 
 
 # --------------- goofish 相关 ----------------
@@ -207,9 +220,9 @@ async def api_save_goofish_state(data: GoofishState):
             f.write(data.content)
         return success_response("保存成功")
     except json.JSONDecodeError:
-        raise HTTPException(status_code=400, detail="提供的内容不是有效的JSON格式。")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"保存失败 {e}")
+        raise HTTPException(status_code=400, detail="提供的内容不是有效的JSON格式")
+    except Exception:
+        raise HTTPException(status_code=500, detail="保存失败")
 
 
 @app.delete("/api/goofish/state/delete", dependencies=[Depends(verify_token)])
@@ -220,8 +233,8 @@ async def api_delete_goofish_state():
             return success_response("删除成功")
         else:
             raise HTTPException(status_code=404, detail="文件未找到")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"删除失败 {e}")
+    except Exception:
+        raise HTTPException(status_code=500, detail="删除失败")
 
 
 @app.get('/api/goofish/status', dependencies=[Depends(verify_token)])
