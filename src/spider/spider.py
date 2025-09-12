@@ -9,7 +9,6 @@ from urllib.parse import urlencode
 
 from playwright.async_api import async_playwright, Page, TimeoutError, BrowserContext
 
-from src.agent.product_evaluator import ProductEvaluator
 from src.config import STATE_FILE, RUN_HEADLESS, USE_EDGE, RUNNING_IN_DOCKER, API_URL_PATTERN, DETAIL_API_URL_PATTERN, SKIP_AI_ANALYSIS
 from src.spider.parsers import parse_page, pares_product_detail_and_seller_info, pares_seller_detail_info
 from src.task.result import save_task_result
@@ -132,7 +131,7 @@ async def process_product(task: Task, product_data, base_data, context: BrowserC
         # product_evaluator = ProductEvaluator()
         pass
     print('写入数据')
-    await save_task_result(keyword, final_record)
+    save_task_result(keyword, final_record)
 
 
 async def process_seller(seller_info: dict, context: BrowserContext):

@@ -1,33 +1,22 @@
+import asyncio
 import hashlib
 import json
 import os
 import secrets
 from datetime import datetime, timedelta
-from typing import Optional
 
 import uvicorn
 from fastapi import FastAPI, HTTPException, Depends
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from jose import JWTError, jwt
 from pydantic import BaseModel
 from starlette.responses import HTMLResponse, FileResponse
 from starlette.staticfiles import StaticFiles
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from jose import JWTError, jwt
 
-from src.config import WEB_USERNAME, WEB_PASSWORD, SERVER_PORT, STATE_FILE
-from src.server.scheduler import load_all_tasks, stop_all_tasks, start_task, update_task_job, run_task, stop_task
+from src.config import WEB_USERNAME, WEB_PASSWORD, SERVER_PORT, STATE_FILE, SECRET_KEY_FILE
+from src.server.scheduler import load_all_tasks, stop_all_tasks, schedule_task, reschedule_task, run_task, stop_task, is_running, get_all_running
 from src.task.result import get_task_result
-from src.task.task import get_all_tasks, add_task, Task, update_task, get_task, remove_task
-
-
-class TaskRequest(BaseModel):
-    task_name: str
-    keyword: str
-    description: str
-    personal_only: bool = True
-    min_price: Optional[str] = None
-    max_price: Optional[str] = None
-    max_pages: int = 3
-    cron: Optional[str] = None
+from src.task.task import get_all_tasks, add_task, update_task, get_task, remove_task, TaskUpdate, TaskWithoutID
 
 
 class GoofishState(BaseModel):
@@ -44,11 +33,22 @@ async def lifespan(app: FastAPI):
     stop_all_tasks()
 
 
+def load_or_create_secret_key():
+    if os.path.exists(SECRET_KEY_FILE):
+        with open(SECRET_KEY_FILE, "r", encoding="utf-8") as f:
+            return f.read().strip()
+    else:
+        key = secrets.token_urlsafe(50)
+        with open(SECRET_KEY_FILE, "w", encoding="utf-8") as f:
+            f.write(key)
+        return key
+
+
 app = FastAPI(title="闲鱼智能监控机器人", lifespan=lifespan)
 app.mount('/static', StaticFiles(directory='resources/static'), name='static')
 
 WEB_PASSWORD_MD5 = hashlib.md5(WEB_PASSWORD.encode('utf-8')).hexdigest()
-SECRET_KEY = secrets.token_urlsafe(50)
+SECRET_KEY = load_or_create_secret_key()
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
 
@@ -99,34 +99,23 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
 
 
 # --------------- 任务相关 ----------------
-@app.get("/api/tasks", dependencies=[Depends(verify_token)])
+@app.get("/api/tasks", response_model=dict, dependencies=[Depends(verify_token)])
 async def api_get_tasks():
     try:
         tasks = await get_all_tasks()
+        for task in tasks:
+            task['running'] = is_running(task.get('task_id'))
         return success_response("任务获取成功", tasks)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"读取任务配置时发生错误: {e}")
 
 
 @app.post("/api/tasks/create", response_model=dict, dependencies=[Depends(verify_token)])
-async def api_create_task(req: TaskRequest):
+async def api_create_task(req: TaskWithoutID):
     try:
-        new_task = {
-            "task_name": req.task_name,
-            "enabled": True,
-            "keyword": req.keyword,
-            "max_pages": req.max_pages,
-            "personal_only": req.personal_only,
-            "min_price": req.min_price,
-            "max_price": req.max_price,
-            "cron": req.cron,
-            "description": req.description,
-        }
-        task_id = await add_task(new_task)
-        start_task(new_task)  # 保持同步调用
-        new_task_with_id = new_task.copy()
-        new_task_with_id["task_id"] = task_id
-        return success_response("任务创建成功", new_task_with_id)
+        task = await add_task(req)
+        schedule_task(task)
+        return success_response("任务创建成功", task)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"创建失败 {e}")
 
@@ -134,9 +123,8 @@ async def api_create_task(req: TaskRequest):
 @app.delete("/api/tasks/delete/{task_id}", response_model=dict, dependencies=[Depends(verify_token)])
 async def api_delete_task(task_id: int):
     try:
-        # 调用删除任务的函数
-        result = await remove_task(task_id)
-        if result:
+        task = await remove_task(task_id)
+        if task:
             return success_response("任务删除成功")
         else:
             raise HTTPException(status_code=404, detail=f"任务 {task_id} 未找到")
@@ -144,25 +132,29 @@ async def api_delete_task(task_id: int):
         raise HTTPException(status_code=500, detail=f"删除任务失败: {e}")
 
 
-@app.post("/api/tasks/update/{task_id}", response_model=dict, dependencies=[Depends(verify_token)])
-async def api_update_task(task_id: int, req: TaskRequest):
+@app.post("/api/tasks/update", response_model=dict, dependencies=[Depends(verify_token)])
+async def api_update_task(req: TaskUpdate):
     try:
-        req['task_id'] = task_id
         new_task = await update_task(req)
-        await update_task_job(new_task)
+        await reschedule_task(new_task)
         return success_response("任务更新成功", new_task)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"更新任务失败: {e}")
 
 
-@app.post("/api/tasks/start/{task_id}", response_model=dict, dependencies=[Depends(verify_token)])
-async def api_start_task(task_id: int):
+@app.post("/api/tasks/run/{task_id}", response_model=dict, dependencies=[Depends(verify_token)])
+async def api_run_task(task_id: int):
     try:
         task = await get_task(task_id)
         if not task:
             raise HTTPException(status_code=404, detail=f"任务 {task_id} 未找到")
-        await run_task(task['task_id'], task['task_name'])
-        return success_response("任务运行成功")
+
+        if is_running(task_id):
+            return success_response("任务已在运行中", {"task_id": task_id, "running": True})
+
+        asyncio.create_task(run_task(task['task_id'], task['task_name']))
+
+        return success_response("任务启动中", {"task_id": task_id, "running": True})
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"任务运行失败: {e}")
 
@@ -171,9 +163,27 @@ async def api_start_task(task_id: int):
 async def api_stop_task(task_id: int):
     try:
         stop_task(task_id)
-        return success_response("任务停止成功")
+        return success_response("任务停止成功", {"task_id": task_id, "running": False})
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"任务停止失败: {e}")
+
+
+@app.get('/api/tasks/status', response_model=dict, dependencies=[Depends(verify_token)])
+async def api_get_tasks_status():
+    try:
+        data = get_all_running()
+        return success_response('请求成功', data)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"任务状态检测失败: {e}")
+
+
+@app.get('/api/tasks/status/{task_id}', response_model=dict, dependencies=[Depends(verify_token)])
+async def api_get_task_status(task_id: int):
+    try:
+        running = is_running(task_id)
+        return success_response("任务状态检测", {"running": running})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"任务状态检测失败: {e}")
 
 
 @app.get("/api/results/{task_id}", dependencies=[Depends(verify_token)])
@@ -188,7 +198,7 @@ async def api_get_task_results(task_id: int, page: int = 1, limit: int = 20, rec
         raise HTTPException(status_code=500, detail=f"结果获取失败: {e}")
 
 
-# --------------- 保存/删除 goofish_state ----------------
+# --------------- goofish 相关 ----------------
 @app.post("/api/goofish/state/save", dependencies=[Depends(verify_token)])
 async def api_save_goofish_state(data: GoofishState):
     try:
@@ -214,16 +224,15 @@ async def api_delete_goofish_state():
         raise HTTPException(status_code=500, detail=f"删除失败 {e}")
 
 
-# --------------- 状态相关 ----------------
-@app.get('/api/status/goofish', dependencies=[Depends(verify_token)])
+@app.get('/api/goofish/status', dependencies=[Depends(verify_token)])
 async def api_get_goofish_status():
     return success_response("状态获取成功", os.path.exists(STATE_FILE))
 
 
-def start_sever():
+def start_server():
     print(f"启动 Web 管理界面，请在浏览器访问 http://127.0.0.1:{SERVER_PORT}")
     uvicorn.run(app, host="0.0.0.0", port=SERVER_PORT)
 
 
 if __name__ == "__main__":
-    start_sever()
+    start_server()

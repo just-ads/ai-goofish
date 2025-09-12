@@ -1,38 +1,53 @@
 import json
 
-from typing import Optional, List
+from typing import Optional, List, TypedDict
 from pydantic import BaseModel
 from src.config import TASKS_FILE
 from src.task.result import remove_task_result
 from src.utils.file_operator import FileOperator
 
 
-class Task(BaseModel):
+class Task(TypedDict):
     task_id: int
     task_name: str
     enabled: bool
     keyword: str
+    cron: str
     description: str
     max_pages: int
     personal_only: bool
-    min_price: Optional[str] = None
-    max_price: Optional[str] = None
-    cron: Optional[str] = None
+    min_price: str
+    max_price: str
 
 
 class TaskUpdate(BaseModel):
+    task_id: int
     task_name: Optional[str] = None
     enabled: Optional[bool] = None
     keyword: Optional[str] = None
+    cron: Optional[str] = None
     description: Optional[str] = None
     max_pages: Optional[int] = None
     personal_only: Optional[bool] = None
     min_price: Optional[str] = None
     max_price: Optional[str] = None
-    cron: Optional[str] = None
 
 
-async def add_task(task: Task) -> int:
+class TaskWithoutID(BaseModel):
+    task_name: str
+    enabled: bool
+    keyword: str
+    cron: str
+    description: str
+    max_pages: int
+    personal_only: bool
+    min_price: str
+    max_price: str
+
+
+async def add_task(task: TaskWithoutID) -> Task:
+    task_dict = task.model_dump()
+
     task_file_op = FileOperator(TASKS_FILE)
 
     data_str = await task_file_op.read()
@@ -42,17 +57,18 @@ async def add_task(task: Task) -> int:
 
     task_id = data[-1]['task_id'] + 1 if data else 0
 
-    task['task_id'] = task_id
+    task_dict['task_id'] = task_id
 
-    data.append(task)
+    data.append(task_dict)
 
     await task_file_op.write(json.dumps(data, ensure_ascii=False, indent=2))
 
-    return task_id
+    return task_dict
 
 
-async def update_task(task: TaskUpdate):
-    task_id = task['task_id']
+async def update_task(task_update: TaskUpdate) -> Task:
+    task_update_dict = task_update.model_dump(exclude_none=True)
+    task_id = task_update_dict['task_id']
 
     task_file_op = FileOperator(TASKS_FILE)
 
@@ -60,22 +76,19 @@ async def update_task(task: TaskUpdate):
 
     data = json.loads(data_str) if data_str else []
 
-    old_task = next((it for it in data if it['task_id'] == task_id), None)
+    task = next((it for it in data if it['task_id'] == task_id), None)
 
-    if not old_task:
+    if not task:
         raise Exception(f'{task_id}任务不存在')
 
-    task_dict = dict(task)
-    task_dict.pop('task_id', None)
-
-    old_task.update(task_dict)
+    task.update(task_update_dict)
 
     await task_file_op.write(json.dumps(data, ensure_ascii=False, indent=2))
 
-    return old_task
+    return task
 
 
-async def get_task(task_id: int) -> Task | None:
+async def get_task(task_id: int) -> Optional[Task]:
     task_file_op = FileOperator(TASKS_FILE)
 
     data_str = await task_file_op.read()
@@ -87,7 +100,7 @@ async def get_task(task_id: int) -> Task | None:
     return task
 
 
-async def remove_task(task_id: int):
+async def remove_task(task_id: int) -> Optional[Task]:
     task_file_op = FileOperator(TASKS_FILE)
 
     data_str = await task_file_op.read()

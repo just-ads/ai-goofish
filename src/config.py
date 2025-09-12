@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+SECRET_KEY_FILE = 'secret_key.txt'
 STATE_FILE = "goofish_state.json"
 RESULT_FILE = "result.json"
 IMAGE_SAVE_DIR = "images"

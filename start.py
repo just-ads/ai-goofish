@@ -1,4 +1,4 @@
-from src.server.server import start_sever
+from src.server.server import start_server
 
 if __name__ == "__main__":
-    start_sever()
+    start_server()
