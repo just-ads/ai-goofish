@@ -129,16 +129,9 @@ async def run_task(task_id: int, task_name: str):
 
 
 def stop_task(task_id: int):
-    """停止指定任务：从调度器中移除并终止进程。"""
-    job_id = f'task_{task_id}'
-    try:
-        scheduler.remove_job(job_id)
-    except JobLookupError:
-        pass
-
-    # 终止正在运行的进程
-    was_running = terminate_process(task_id)
-    print(f"任务 {task_id} 已停止{'（包括终止运行中的进程）' if was_running else ''}")
+    """停止正在运行的指定任务"""
+    terminate_process(task_id)
+    print(f"任务 {task_id} 已停止运行")
 
 
 def remove_task_from_scheduler(task_id: int):
@@ -150,6 +143,8 @@ def remove_task_from_scheduler(task_id: int):
         pass
     finally:
         terminate_process(task_id)
+
+    print(f"任务 {task_id} 已移除调度器并停止运行")
 
 
 def add_task_to_scheduler(task: Task):
