@@ -101,6 +101,8 @@ async def process_page(task: Task, page_data: dict, processed_ids: set[str], con
             except Exception as e:
                 print(f"处理商品 {product_id} 时出错：{e}")
 
+        await random_sleep(5, 10)
+
     await detail_page.close()
 
 
@@ -119,7 +121,7 @@ async def process_product(task: Task, product_data, base_data, context: BrowserC
     keyword = task.get('keyword')
 
     final_record = {
-        "爬取时间": datetime.now().isoformat(),
+        "爬取时间": datetime.now().strftime("%Y-%m-%d %H:%M"),
         "搜索关键字": keyword,
         "任务名称": task.get('task_name', 'Untitled Task'),
         "商品信息": product_data,

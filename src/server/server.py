@@ -4,6 +4,7 @@ import json
 import os
 import secrets
 from datetime import datetime, timedelta
+from typing import Optional
 
 import uvicorn
 from fastapi import FastAPI, HTTPException, Depends
@@ -16,12 +17,19 @@ from starlette.staticfiles import StaticFiles
 from src.config import WEB_USERNAME, WEB_PASSWORD, SERVER_PORT, STATE_FILE, SECRET_KEY_FILE
 from src.server.scheduler import initialize_task_scheduler, shutdown_task_scheduler, add_task_to_scheduler, update_scheduled_task, run_task, remove_task_from_scheduler, \
     is_task_running, get_all_running_tasks, stop_task
-from src.task.result import get_task_result
+from src.task.result import get_task_result, remove_task_result
 from src.task.task import get_all_tasks, add_task, update_task, get_task, remove_task, TaskUpdate, TaskWithoutID
 
 
 class GoofishState(BaseModel):
     content: str
+
+
+class PaginationOptions(BaseModel):
+    page: Optional[int] = 1
+    limit: Optional[int] = 20
+    recommended_only: Optional[bool] = False
+    sort_by: Optional[str] = "publish_time"
 
 
 async def lifespan(app: FastAPI):
@@ -86,7 +94,7 @@ async def index():
 
 
 # --------------- 登录 -------------------
-@app.post("/api/login")
+@app.post("/api/login", response_model=dict)
 async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     if form_data.username != WEB_USERNAME or form_data.password != WEB_PASSWORD_MD5:
         raise HTTPException(status_code=401, detail="用户名或密码错误")
@@ -155,6 +163,15 @@ async def api_update_task(req: TaskUpdate):
         raise HTTPException(status_code=500, detail="更新任务失败")
 
 
+@app.delete("/api/tasks/delete/{task_id}", response_model=dict, dependencies=[Depends(verify_token)])
+async def api_remove_task(task_id: int):
+    try:
+        await remove_task(task_id)
+        return success_response("任务删除成功")
+    except Exception:
+        raise HTTPException(status_code=500, detail="更新删除失败")
+
+
 @app.post("/api/tasks/run/{task_id}", response_model=dict, dependencies=[Depends(verify_token)])
 async def api_run_task(task_id: int):
     try:
@@ -199,20 +216,32 @@ async def api_get_task_status(task_id: int):
         raise HTTPException(status_code=500, detail="任务状态检测失败")
 
 
-@app.get("/api/results/{task_id}", dependencies=[Depends(verify_token)])
-async def api_get_task_results(task_id: int, page: int = 1, limit: int = 20, recommended_only: bool = False, sort_by: str = 'crawl_time'):
+@app.post("/api/results/{task_id}", response_model=dict, dependencies=[Depends(verify_token)])
+async def api_get_task_results(task_id: int, data: PaginationOptions):
     try:
         task = await get_task(task_id)
         if not task:
             raise HTTPException(status_code=404, detail="任务未找到")
-        result = await get_task_result(task['keyword'], page, limit, recommended_only, sort_by)
+        result = await get_task_result(task['keyword'], data.page, data.limit, data.recommended_only, data.sort_by)
         return success_response("结果获取成功", result)
     except Exception:
         raise HTTPException(status_code=500, detail="结果获取失败")
 
 
+@app.delete("/api/results/{task_id}", response_model=dict, dependencies=[Depends(verify_token)])
+async def api_remove_task_results(task_id: int):
+    try:
+        task = await get_task(task_id)
+        if not task:
+            raise HTTPException(status_code=404, detail="任务未找到")
+        remove_task_result(task.get('keyword'))
+        return success_response("删除成功")
+    except Exception:
+        raise HTTPException(status_code=500, detail="删除失败")
+
+
 # --------------- goofish 相关 ----------------
-@app.post("/api/goofish/state/save", dependencies=[Depends(verify_token)])
+@app.post("/api/goofish/state/save", response_model=dict, dependencies=[Depends(verify_token)])
 async def api_save_goofish_state(data: GoofishState):
     try:
         json.loads(data.content)
@@ -225,7 +254,7 @@ async def api_save_goofish_state(data: GoofishState):
         raise HTTPException(status_code=500, detail="保存失败")
 
 
-@app.delete("/api/goofish/state/delete", dependencies=[Depends(verify_token)])
+@app.delete("/api/goofish/state/delete", response_model=dict, dependencies=[Depends(verify_token)])
 async def api_delete_goofish_state():
     try:
         if os.path.exists(STATE_FILE):
@@ -237,7 +266,7 @@ async def api_delete_goofish_state():
         raise HTTPException(status_code=500, detail="删除失败")
 
 
-@app.get('/api/goofish/status', dependencies=[Depends(verify_token)])
+@app.get('/api/goofish/status', response_model=dict, dependencies=[Depends(verify_token)])
 async def api_get_goofish_status():
     return success_response("状态获取成功", os.path.exists(STATE_FILE))
 

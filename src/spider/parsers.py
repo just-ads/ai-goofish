@@ -77,12 +77,12 @@ def parse_page(data: dict):
 
 def pares_product_detail_and_seller_info(data: dict, base_data: dict):
     item_do = safe_get(data, 'data', 'itemDO', default={})
-    # image_infos = safe_get(item_do, 'imageInfos', default=[])
-    # if image_infos:
-    #     all_image_urls = [img.get('url') for img in image_infos if img.get('url')]
-    #     if all_image_urls:
-    #         base_data['商品图片列表'] = all_image_urls
-    #         base_data['商品主图链接'] = all_image_urls[0]
+    image_infos = safe_get(item_do, 'imageInfos', default=[])
+    if image_infos:
+        all_image_urls = [img.get('url') for img in image_infos if img.get('url')]
+        if all_image_urls:
+            base_data['商品图片列表'] = all_image_urls
+            # base_data['商品主图链接'] = all_image_urls[0]
     base_data['浏览量'] = safe_get(item_do, 'browseCnt', default='-')
     base_data['商品描述'] = safe_get(item_do, 'desc', default='无')
 
