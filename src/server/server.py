@@ -90,7 +90,7 @@ async def verify_token(token: str = Depends(oauth2_scheme)):
 # ----------------- 路由 -----------------
 @app.get("/", response_class=HTMLResponse)
 async def index():
-    return FileResponse("resources/static/index.html")
+    return FileResponse("resources/index.html")
 
 
 # --------------- 登录 -------------------
