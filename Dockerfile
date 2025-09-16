@@ -61,12 +61,7 @@ COPY --from=builder /ms-playwright /ms-playwright
 # 使用 www-data 用户
 RUN chown -R www-data:www-data /app
 USER www-data
-
-# 切换到安全的非特权用户
-USER nobody
-
-# 拷贝源码到项目根目录（/app）
-COPY --chown=nobody:nogroup . .
+COPY --chown=www-data:www-data . .
 
 EXPOSE 8000
 
