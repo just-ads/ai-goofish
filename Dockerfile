@@ -1,6 +1,9 @@
 # ---------- 构建阶段 ----------
 FROM python:3.12-slim AS builder
 
+# 构建阶段的工作目录
+WORKDIR /build
+
 # 设置环境变量
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
@@ -9,8 +12,6 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     VIRTUAL_ENV=/opt/venv \
     PATH="/opt/venv/bin:$PATH"
-
-WORKDIR /app
 
 # 安装系统依赖 (编译和 playwright 所需)
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -34,13 +35,15 @@ RUN pip install --upgrade pip \
 # ---------- 运行阶段 ----------
 FROM python:3.12-slim
 
+# 设置项目根目录
+WORKDIR /app
+
 # 设置环境变量
 ENV PYTHONUNBUFFERED=1 \
+    RUNNING_IN_DOCKER=true \
     PLAYWRIGHT_BROWSERS_PATH=/ms-playwright \
     VIRTUAL_ENV=/opt/venv \
     PATH="/opt/venv/bin:$PATH"
-
-WORKDIR /app
 
 # 安装运行时必须的库（最小化）
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -56,17 +59,13 @@ COPY --from=builder /opt/venv /opt/venv
 COPY --from=builder /ms-playwright /ms-playwright
 
 # 创建应用目录并设置权限
-RUN mkdir -p /app && chown nobody:nogroup /app
+RUN chown nobody:nogroup /app
 
 # 切换到安全的非特权用户
 USER nobody
 
-# 拷贝源码（使用正确的权限）
+# 拷贝源码到项目根目录（/app）
 COPY --chown=nobody:nogroup . .
-
-# 健康检查（可选）
-HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
 
 EXPOSE 8000
 
