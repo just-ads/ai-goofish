@@ -35,10 +35,6 @@ RUN pip install --upgrade pip \
 # ---------- 运行阶段 ----------
 FROM python:3.12-slim
 
-# 创建目录并设置权限
-RUN mkdir -p /app && \
-    chown www-data:www-data /app
-
 # 设置项目根目录
 WORKDIR /app
 
@@ -62,8 +58,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=builder /opt/venv /opt/venv
 COPY --from=builder /ms-playwright /ms-playwright
 
-USER www-data
-COPY --chown=www-data:www-data . .
+COPY . .
 
 EXPOSE 8000
 
