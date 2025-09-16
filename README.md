@@ -91,3 +91,9 @@ python start.py
     - 登录认证基于 JWT。
     - 提供任务的增删改查、手动启动/停止、查看执行状态。
     - 结果支持分页查询与筛选。
+
+
+## 致谢
+
+本项目在开发过程中参考了以下：
+ - [ai-goofish-monitor](https://github.com/dingyufei615/ai-goofish-monitor)
