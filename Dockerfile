@@ -58,8 +58,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=builder /opt/venv /opt/venv
 COPY --from=builder /ms-playwright /ms-playwright
 
-# 创建应用目录并设置权限
-RUN chown nobody:nogroup /app
+# 使用 www-data 用户
+RUN chown -R www-data:www-data /app
+USER www-data
 
 # 切换到安全的非特权用户
 USER nobody
