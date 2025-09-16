@@ -107,7 +107,7 @@ async def process_page(task: Task, page_data: dict, processed_ids: set[str], con
 
 
 async def process_product(task: Task, product_data, base_data, context: BrowserContext):
-    print(f'开始处理商品 {base_data['商品标题']}')
+    print(f'开始处理商品 {base_data['商品标题'][0:10]}')
 
     ret_string = str(safe_get(product_data, 'ret', default=[]))
 
