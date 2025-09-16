@@ -1,0 +1,15 @@
+# IntelliJ project files
+.idea
+*.iml
+out
+gen
+
+.git
+.gitignore
+.gitmodules
+LICENSE
+README.md
+
+tests
+webui
+.env.example
