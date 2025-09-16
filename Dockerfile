@@ -1,10 +1,6 @@
 # ---------- 构建阶段 ----------
 FROM python:3.12-slim AS builder
 
-# 设置元数据
-LABEL maintainer="your-email@example.com"
-LABEL description="Application with Python 3.12 and Playwright"
-
 # 设置环境变量
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
