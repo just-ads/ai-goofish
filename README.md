@@ -111,7 +111,7 @@ npm run build
 python start.py
 ```
 
-启动后访问(默认用户名admin，密码admin123)：
+启动后访问(默认用户名admin，密码admin)：
 
     http://127.0.0.1:8000
 
@@ -121,14 +121,14 @@ python start.py
 
 ## 环境变量说明
 
-| 变量名                 | 默认值 / 示例   | 说明                                     |
-|---------------------|------------|----------------------------------------|
-| **PCURL_TO_MOBILE** | `true`     | 是否开启电脑链接转换为手机链接                        |
-| **RUN_HEADLESS**    | `true`     | 爬虫是否以无头模式运行 (true/false)，本地调试可设为 false |
-| **ENABLE_THINKING** | `false`    | 是否启用 `enable_thinking` 参数，部分模型需要       |
-| **SERVER_PORT**     | `8000`     | 服务运行端口，默认 8000                         |
-| **WEB_USERNAME**    | `admin`    | Web 服务登录用户名                            |
-| **WEB_PASSWORD**    | `admin123` | Web 服务登录密码                             |
+| 变量名                 | 默认值 / 示例 | 说明                                     |
+|---------------------|----------|----------------------------------------|
+| **PCURL_TO_MOBILE** | `true`   | 是否开启电脑链接转换为手机链接                        |
+| **RUN_HEADLESS**    | `true`   | 爬虫是否以无头模式运行 (true/false)，本地调试可设为 false |
+| **ENABLE_THINKING** | `false`  | 是否启用 `enable_thinking` 参数，部分模型需要       |
+| **SERVER_PORT**     | `8000`   | 服务运行端口，默认 8000                         |
+| **WEB_USERNAME**    | `admin`  | Web 服务登录用户名                            |
+| **WEB_PASSWORD**    | `admin`  | Web 服务登录密码                             |
 
 ------------------------------------------------------------------------
 
