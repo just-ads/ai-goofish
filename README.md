@@ -70,11 +70,13 @@
 - [Docker Engine](https://docs.docker.com/engine/install/)
 
 #### 2.拉取代码
+
 ```bash
 git clone https://github.com/just-ads/ai-goofish.git
 ```
 
 #### 3.创建.env 并运行容器
+
 ```bash
 cd ai-goofish
 # 创建.env
@@ -84,6 +86,7 @@ docker-compose up --build -d
 ```
 
 ### 本地开发
+
 #### 1. 环境准备
 
 - [Python 3.10+](https://www.python.org/downloads/)
@@ -108,11 +111,24 @@ npm run build
 python start.py
 ```
 
-启动后访问：
+启动后访问(默认用户名admin，密码admin123)：
 
     http://127.0.0.1:8000
 
 登录后可在 Web 界面管理任务、启动/停止采集、查看数据。
+
+------------------------------------------------------------------------
+
+## 环境变量说明
+
+| 变量名                 | 默认值 / 示例   | 说明                                     |
+|---------------------|------------|----------------------------------------|
+| **PCURL_TO_MOBILE** | `true`     | 是否开启电脑链接转换为手机链接                        |
+| **RUN_HEADLESS**    | `true`     | 爬虫是否以无头模式运行 (true/false)，本地调试可设为 false |
+| **ENABLE_THINKING** | `false`    | 是否启用 `enable_thinking` 参数，部分模型需要       |
+| **SERVER_PORT**     | `8000`     | 服务运行端口，默认 8000                         |
+| **WEB_USERNAME**    | `admin`    | Web 服务登录用户名                            |
+| **WEB_PASSWORD**    | `admin123` | Web 服务登录密码                             |
 
 ------------------------------------------------------------------------
 
