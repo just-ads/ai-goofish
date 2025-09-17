@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 import uvicorn
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from pydantic import BaseModel
@@ -85,12 +85,6 @@ async def verify_token(token: str = Depends(oauth2_scheme)):
             raise HTTPException(status_code=401, detail="无效的 Token")
     except JWTError:
         raise HTTPException(status_code=401, detail="认证失败")
-
-
-# ----------------- 路由 -----------------
-@app.get("/", response_class=HTMLResponse)
-async def index():
-    return FileResponse("resources/index.html")
 
 
 # --------------- 登录 -------------------
@@ -269,6 +263,17 @@ async def api_delete_goofish_state():
 @app.get('/api/goofish/status', response_model=dict, dependencies=[Depends(verify_token)])
 async def api_get_goofish_status():
     return success_response("状态获取成功", os.path.exists(STATE_FILE))
+
+
+# ----------------- 路由 -----------------
+@app.get("/{path:path}")
+async def index(request: Request, path: str):
+    is_html_request = "text/html" in request.headers.get("accept", "").lower()
+
+    if is_html_request:
+        return FileResponse("resources/index.html")
+
+    raise HTTPException(status_code=404)
 
 
 def start_server():
