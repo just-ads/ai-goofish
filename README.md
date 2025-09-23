@@ -82,7 +82,7 @@ cd ai-goofish
 # 创建.env
 cp .env.example .env
 # 构建并运行
-docker-compose up --build -d
+docker compose up --build -d
 ```
 
 ### 本地开发
