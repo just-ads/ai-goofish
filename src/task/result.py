@@ -25,7 +25,7 @@ def remove_task_result(keyword: str):
         os.remove(filename)
 
 
-async def get_task_result(keyword: str, page: int, limit: int = 20, recommended_only: bool = False, sort_by: str = "crawl_time"):
+async def get_task_result(keyword: str, page: int, limit: int = 20, recommended_only: bool = False, sort_by: str = "crawl_time", order: str = "asce"):
     results = []
     filename = os.path.join(output_dir, f"{keyword.replace(' ', '_')}_full_data.jsonl")
 
@@ -59,7 +59,7 @@ async def get_task_result(keyword: str, page: int, limit: int = 20, recommended_
             else:
                 results.append(record)
 
-    results.sort(key=get_sort_key)
+    results.sort(key=get_sort_key, reverse=order == 'desc')
 
     total_items = len(results)
     start = (page - 1) * limit

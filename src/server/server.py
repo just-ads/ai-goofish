@@ -30,6 +30,7 @@ class PaginationOptions(BaseModel):
     limit: Optional[int] = 20
     recommended_only: Optional[bool] = False
     sort_by: Optional[str] = "publish_time"
+    order: Optional[str] = "asce"
 
 
 async def lifespan(app: FastAPI):
@@ -217,7 +218,7 @@ async def api_get_task_results(task_id: int, data: PaginationOptions):
         task = await get_task(task_id)
         if not task:
             raise HTTPException(status_code=404, detail="任务未找到")
-        result = await get_task_result(task['keyword'], data.page, data.limit, data.recommended_only, data.sort_by)
+        result = await get_task_result(task['keyword'], data.page, data.limit, data.recommended_only, data.sort_by, data.order)
         return success_response("结果获取成功", result)
     except Exception:
         raise HTTPException(status_code=500, detail="结果获取失败")
