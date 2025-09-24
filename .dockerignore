@@ -12,4 +12,11 @@ README.md
 
 tests
 webui
+.env
 .env.example
+
+images
+jsonl
+secret_key.txt
+task.json
+goofish_state.json
