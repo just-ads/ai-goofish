@@ -160,6 +160,7 @@ async def api_update_task(req: TaskUpdate):
 @app.delete("/api/tasks/delete/{task_id}", response_model=dict, dependencies=[Depends(verify_token)])
 async def api_remove_task(task_id: int):
     try:
+        remove_task_from_scheduler(task_id)
         await remove_task(task_id)
         return success_response("任务删除成功")
     except Exception:
