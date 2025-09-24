@@ -18,5 +18,5 @@ webui
 images
 jsonl
 secret_key.txt
-task.json
+tasks.json
 goofish_state.json
