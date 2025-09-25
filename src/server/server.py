@@ -148,16 +148,6 @@ async def api_update_task(req: TaskUpdate):
         raise HTTPException(status_code=500, detail="更新任务失败")
 
 
-@app.post("/api/tasks/update", response_model=dict, dependencies=[Depends(verify_token)])
-async def api_update_task(req: TaskUpdate):
-    try:
-        new_task = await update_task(req)
-        await update_scheduled_task(new_task)
-        return success_response("任务更新成功", new_task)
-    except Exception:
-        raise HTTPException(status_code=500, detail="更新任务失败")
-
-
 @app.delete("/api/tasks/delete/{task_id}", response_model=dict, dependencies=[Depends(verify_token)])
 async def api_remove_task(task_id: int):
     try:
