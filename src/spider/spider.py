@@ -69,7 +69,7 @@ async def check_anti_spider_dialog(page: Page):
     print("\nLOG: 未检测到任何反爬虫验证弹窗")
     return False
 
-
+"""处理单页商品列表"""
 async def process_page(task: Task, page_data: dict, processed_ids: set[str], context: BrowserContext):
     product_basic_info = parse_page(page_data)
 
@@ -105,18 +105,18 @@ async def process_page(task: Task, page_data: dict, processed_ids: set[str], con
 
     await detail_page.close()
 
-
-async def process_product(task: Task, product_data, base_data, context: BrowserContext):
+"""处理商品详情页"""
+async def process_product(task: Task, product_api_data, base_data, context: BrowserContext):
     print(f'开始处理商品 {base_data['商品标题'][0:10]}')
 
-    ret_string = str(safe_get(product_data, 'ret', default=[]))
+    ret_string = str(safe_get(product_api_data, 'ret', default=[]))
 
     if "FAIL_SYS_USER_VALIDATE" in ret_string:
         raise ValidationError('FAIL_SYS_USER_VALIDATE')
 
-    product_data, seller_info = pares_product_detail_and_seller_info(product_data, base_data)
+    product_data, seller_base_info = pares_product_detail_and_seller_info(product_api_data, base_data)
 
-    seller_info = await process_seller(seller_info, context)
+    seller_info = await process_seller(seller_base_info, context)
 
     keyword = task.get('keyword')
 

@@ -89,6 +89,10 @@ def pares_product_detail_and_seller_info(data: dict, base_data: dict):
     seller_do = safe_get(data, 'data', 'sellerDO', default={})
     seller_id = safe_get(seller_do, 'sellerId')
     seller_name = safe_get(seller_do, 'nick', default="")
+    seller_signature = safe_get(seller_do, 'signature', default="")
+    seller_sold = safe_get(seller_do, 'hasSoldNumInteger', default=0)
+    seller_good_remark = safe_get(seller_do, 'remarkDO', 'sellerGoodRemarkCnt', default=0)
+    seller_bad_remark = safe_get(seller_do, 'remarkDO', 'sellerBadRemarkCnt', default=0)
     identity_tags = safe_get(seller_do, 'identityTags', default=[])
     auth = '未知'
     if identity_tags:
@@ -108,7 +112,11 @@ def pares_product_detail_and_seller_info(data: dict, base_data: dict):
         '实名认证': auth,
         '回复间隔': reply_interval,
         '二十四小时回复率': reply_ratio_24h,
-        '注册天数': register
+        '注册天数': register,
+        '卖家个性签名': seller_signature,
+        '卖家已出售商品': seller_sold,
+        '卖家好评数': seller_good_remark,
+        '卖家差评数': seller_bad_remark,
     }
 
     return base_data, seller_info
