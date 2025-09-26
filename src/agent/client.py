@@ -3,9 +3,11 @@ from typing import Iterable, Literal
 from openai import AsyncOpenAI
 from openai.types.chat import ChatCompletionMessageParam
 
+from src.config import BASE_URL, MODEL_NAME, SKIP_AI_ANALYSIS, API_KEY
+
 
 class AiClient:
-    def __init__(self, base_url: str, key: str, model_name: str):
+    def __init__(self, base_url: str, model_name: str, key: str):
         self.model_name = model_name
         self.agent = AsyncOpenAI(api_key=key, base_url=base_url)
 
@@ -18,5 +20,5 @@ class AiClient:
         )
         return resp.choices[0].message.content
 
-# def init_ai_client(base_url: str, key: str, model_name: str):
-#     ai_client = AiClient(base_url, key, model_name)
+
+ai_client = AiClient(BASE_URL, MODEL_NAME, API_KEY) if not SKIP_AI_ANALYSIS else None

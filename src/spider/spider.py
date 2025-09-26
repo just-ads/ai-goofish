@@ -9,6 +9,8 @@ from urllib.parse import urlencode
 
 from playwright.async_api import async_playwright, Page, TimeoutError, BrowserContext
 
+from src.agent.client import ai_client
+from src.agent.product_evaluator import ProductEvaluator
 from src.config import STATE_FILE, RUN_HEADLESS, USE_EDGE, RUNNING_IN_DOCKER, API_URL_PATTERN, DETAIL_API_URL_PATTERN, SKIP_AI_ANALYSIS
 from src.spider.parsers import parse_page, pares_product_detail_and_seller_info, pares_seller_detail_info
 from src.task.result import save_task_result
@@ -69,7 +71,10 @@ async def check_anti_spider_dialog(page: Page):
     print("\nLOG: 未检测到任何反爬虫验证弹窗")
     return False
 
+
 """处理单页商品列表"""
+
+
 async def process_page(task: Task, page_data: dict, processed_ids: set[str], context: BrowserContext):
     product_basic_info = parse_page(page_data)
 
@@ -105,7 +110,10 @@ async def process_page(task: Task, page_data: dict, processed_ids: set[str], con
 
     await detail_page.close()
 
+
 """处理商品详情页"""
+
+
 async def process_product(task: Task, product_api_data, base_data, context: BrowserContext):
     print(f'开始处理商品 {base_data['商品标题'][0:10]}')
 
@@ -128,10 +136,22 @@ async def process_product(task: Task, product_api_data, base_data, context: Brow
         "卖家信息": seller_info
     }
 
-    if not SKIP_AI_ANALYSIS:
-        # todo AI分析
-        # product_evaluator = ProductEvaluator()
-        pass
+    if (not SKIP_AI_ANALYSIS) and ai_client:
+        # todo 把编辑环境变量和UI完成了再放开
+        '''
+        print('开始ai分析')
+        try:
+            product_evaluator = ProductEvaluator(
+                ai_client,
+                product_data,
+                seller_info,
+                {"description": task.get('description')}
+            )
+            analysis_results = await product_evaluator.evaluate()
+            final_record['分析结果'] = analysis_results
+        except Exception as e:
+            print(f'ai分析出错: {e}')
+        '''
     print('写入数据')
     save_task_result(keyword, final_record)
 

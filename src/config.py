@@ -22,7 +22,7 @@ WEB_PASSWORD = os.getenv("WEB_PASSWORD", 'admin')
 # SECRET_KEY = os.getenv("SECRET_KEY")
 
 # --- Environment Variables ---
-API_KEY = os.getenv("OPENAI_API_KEY")
+API_KEY = os.getenv("OPENAI_API_KEY", '')
 BASE_URL = os.getenv("OPENAI_BASE_URL")
 MODEL_NAME = os.getenv("OPENAI_MODEL_NAME")
 PROXY_URL = os.getenv("PROXY_URL")
