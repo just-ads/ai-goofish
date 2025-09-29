@@ -14,7 +14,8 @@ from pydantic import BaseModel
 from starlette.responses import HTMLResponse, FileResponse
 from starlette.staticfiles import StaticFiles
 
-from src.config import WEB_USERNAME, WEB_PASSWORD, SERVER_PORT, STATE_FILE, SECRET_KEY_FILE
+from src.agent.client import AiClient
+from src.config import WEB_USERNAME, WEB_PASSWORD, SERVER_PORT, STATE_FILE, SECRET_KEY_FILE, get_envs, set_envs
 from src.server.scheduler import initialize_task_scheduler, shutdown_task_scheduler, add_task_to_scheduler, update_scheduled_task, run_task, remove_task_from_scheduler, \
     is_task_running, get_all_running_tasks, stop_task
 from src.task.result import get_task_result, remove_task_result
@@ -255,6 +256,39 @@ async def api_delete_goofish_state():
 @app.get('/api/goofish/status', response_model=dict, dependencies=[Depends(verify_token)])
 async def api_get_goofish_status():
     return success_response("状态获取成功", os.path.exists(STATE_FILE))
+
+
+@app.get('/api/system', response_model=dict, dependencies=[Depends(verify_token)])
+async def api_get_system():
+    return success_response('获取成功', get_envs())
+
+
+@app.post('/api/system', response_model=dict, dependencies=[Depends(verify_token)])
+async def api_save_system(envs: dict):
+    try:
+        set_envs(envs)
+        return success_response('保存成功')
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="保存失败")
+
+
+@app.post('/api/system/aitest', response_model=dict, dependencies=[Depends(verify_token)])
+async def api_aitest(config: dict):
+    try:
+        client = AiClient(
+            base_url=config.get('OPENAI_BASE_URL'),
+            api_key=config.get('OPENAI_API_KEY'),
+            model_name=config.get('OPENAI_MODEL_NAME'),
+            proxy=config.get('OPENAI_PROXY_URL'),
+            extra_body=config.get('OPENAI_EXTRA_BODY')
+        )
+        messages = await client.ask(
+            {"role": "user", "content": "Hello."},
+            'text'
+        )
+        return success_response(f'测试成功: {messages}')
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"测试失败: {e}")
 
 
 # ----------------- 路由 -----------------
