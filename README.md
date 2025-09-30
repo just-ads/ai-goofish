@@ -33,11 +33,9 @@
     │   │   ├── scheduler.py    # 任务调度与运行管理
     │   │   ├── server.py       # Web 服务入口，提供任务管理与结果接口
     │   ├── utils/
-    │   │   ├── utils.py        # 工具函数 (sleep、数据获取安全封装等)
+    │   │   ├── utils.py        # 工具函数
     ├── resources/
     │   └── static/             # 前端静态资源 (Web 管理界面)
-    ├── tasks.json              # 任务配置文件
-    ├── requirements.txt        # Python 依赖
 
 ------------------------------------------------------------------------
 
