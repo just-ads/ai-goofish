@@ -10,7 +10,7 @@ from src.config import OPENAI_BASE_URL, OPENAI_MODEL_NAME, SKIP_AI_ANALYSIS, OPE
 class AiClient:
     def __init__(self, *, base_url: str, model_name: str, api_key: str, proxy: str = None, extra_body: str = None):
         self.model_name = model_name
-        self.extra_body = extra_body
+        self.extra_body = extra_body if isinstance(extra_body, dict) else None
         http_client = None
         if proxy:
             http_client = httpx.AsyncClient(proxy=proxy)

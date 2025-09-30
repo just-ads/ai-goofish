@@ -102,6 +102,7 @@ class ProductEvaluator:
         return reply
 
     def synthesize_final(self) -> Dict[str, Any]:
+        """
         parts: List[str] = []
         for step in self.result["steps"]:
             step_name = step.get("step")
@@ -115,8 +116,11 @@ class ProductEvaluator:
                     parts.append(f"{step_name}: {fallback}")
                 else:
                     parts.append(f"{step_name}: 无可解析的分析输出")
+        """
 
-        final_analysis = "\n".join(parts) + f"\n最终建议度: {self.result['suggestion_score']}。"
+        last_step = self.result["steps"][-1]
+
+        final_analysis = last_step.get('reply', {}).get('analysis', '')
 
         score = self.result["suggestion_score"]
         if score >= 80:
@@ -129,9 +133,9 @@ class ProductEvaluator:
             verdict_text = "不建议购买"
 
         return {
-            "verdict": score,
-            "verdictText": verdict_text,
-            "reason": final_analysis
+            "推荐度": score,
+            "建议": verdict_text,
+            "原因": final_analysis
         }
 
     async def evaluate(self, *, include_image: bool = False) -> Dict[str, Any]:

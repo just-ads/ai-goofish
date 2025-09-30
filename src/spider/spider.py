@@ -197,7 +197,7 @@ async def start_task(task: Task):
         try:
             print("LOG: 步骤 1 - 直接导航到搜索结果页...")
             params = {'q': keyword}
-            search_url = f"https://www.goofish.com/search?{urlencode(params)}"
+            search_url = f"https://www.goofish.com/search?{urlencode(params)}&spm=a21ybx.home.searchInput.0"
             print(f"   -> 目标URL: {search_url}")
 
             await page.goto(search_url, wait_until="domcontentloaded", timeout=60000)
