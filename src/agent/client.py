@@ -20,6 +20,7 @@ class AiClient:
         resp = await self.agent.chat.completions.create(
             model=self.model_name,
             response_format={"type": response_format},
+            stream=False,
             messages=message,
             temperature=0.2,
             extra_body=self.extra_body

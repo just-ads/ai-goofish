@@ -23,22 +23,22 @@ WEB_PASSWORD = os.getenv("WEB_PASSWORD", 'admin')
 # SECRET_KEY = os.getenv("SECRET_KEY")
 
 # --- Environment Variables ---
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL")
-OPENAI_MODEL_NAME = os.getenv("OPENAI_MODEL_NAME")
-OPENAI_PROXY_URL = os.getenv("OPENAI_PROXY_URL")
-OPENAI_EXTRA_BODY = os.getenv("OPENAI_EXTRA_BODY")
-NTFY_TOPIC_URL = os.getenv("NTFY_TOPIC_URL")
-GOTIFY_URL = os.getenv("GOTIFY_URL")
-GOTIFY_TOKEN = os.getenv("GOTIFY_TOKEN")
-BARK_URL = os.getenv("BARK_URL")
-WX_BOT_URL = os.getenv("WX_BOT_URL")
-WEBHOOK_URL = os.getenv("WEBHOOK_URL")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", '')
+OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", '')
+OPENAI_MODEL_NAME = os.getenv("OPENAI_MODEL_NAME", '')
+OPENAI_PROXY_URL = os.getenv("OPENAI_PROXY_URL", '')
+OPENAI_EXTRA_BODY = os.getenv("OPENAI_EXTRA_BODY", '')
+NTFY_TOPIC_URL = os.getenv("NTFY_TOPIC_URL", '')
+GOTIFY_URL = os.getenv("GOTIFY_URL", '')
+GOTIFY_TOKEN = os.getenv("GOTIFY_TOKEN", '')
+BARK_URL = os.getenv("BARK_URL", '')
+WX_BOT_URL = os.getenv("WX_BOT_URL", '')
+WEBHOOK_URL = os.getenv("WEBHOOK_URL", '')
 WEBHOOK_METHOD = os.getenv("WEBHOOK_METHOD", "POST").upper()
-WEBHOOK_HEADERS = os.getenv("WEBHOOK_HEADERS")
+WEBHOOK_HEADERS = os.getenv("WEBHOOK_HEADERS", '')
 WEBHOOK_CONTENT_TYPE = os.getenv("WEBHOOK_CONTENT_TYPE", "JSON").upper()
-WEBHOOK_QUERY_PARAMETERS = os.getenv("WEBHOOK_QUERY_PARAMETERS")
-WEBHOOK_BODY = os.getenv("WEBHOOK_BODY")
+WEBHOOK_QUERY_PARAMETERS = os.getenv("WEBHOOK_QUERY_PARAMETERS", '')
+WEBHOOK_BODY = os.getenv("WEBHOOK_BODY", '')
 PCURL_TO_MOBILE = os.getenv("PCURL_TO_MOBILE", "false").lower() == "true"
 RUN_HEADLESS = os.getenv("RUN_HEADLESS", "true").lower() != "false"
 USE_EDGE = os.getenv("LOGIN_IS_EDGE", "false").lower() == "true"
@@ -67,12 +67,13 @@ def get_envs():
         "OPENAI_API_KEY": OPENAI_API_KEY,
         "OPENAI_MODEL_NAME": OPENAI_MODEL_NAME,
         "OPENAI_PROXY_URL": OPENAI_PROXY_URL,
+        "OPENAI_EXTRA_BODY": json.dumps(OPENAI_EXTRA_BODY) if OPENAI_EXTRA_BODY else "",
     }
 
 
 def set_envs(updates: dict, env_file=".env"):
     for key, value in updates.items():
-        os.environ[key] = value
+        os.environ[key] = '' if value is None else str(value)
 
     lines = []
     if os.path.exists(env_file):

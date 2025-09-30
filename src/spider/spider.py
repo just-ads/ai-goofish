@@ -137,8 +137,6 @@ async def process_product(task: Task, product_api_data, base_data, context: Brow
     }
 
     if (not SKIP_AI_ANALYSIS) and ai_client:
-        # todo 把编辑环境变量和UI完成了再放开
-        '''
         print('开始ai分析')
         try:
             product_evaluator = ProductEvaluator(
@@ -151,7 +149,6 @@ async def process_product(task: Task, product_api_data, base_data, context: Brow
             final_record['分析结果'] = analysis_results
         except Exception as e:
             print(f'ai分析出错: {e}')
-        '''
     print('写入数据')
     save_task_result(keyword, final_record)
 

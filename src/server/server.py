@@ -267,9 +267,9 @@ async def api_get_system():
 async def api_save_system(envs: dict):
     try:
         set_envs(envs)
-        return success_response('保存成功')
+        return success_response('保存成功', get_envs())
     except Exception as e:
-        raise HTTPException(status_code=500, detail="保存失败")
+        raise HTTPException(status_code=500, detail=f"保存失败: {e}")
 
 
 @app.post('/api/system/aitest', response_model=dict, dependencies=[Depends(verify_token)])
@@ -283,10 +283,10 @@ async def api_aitest(config: dict):
             extra_body=config.get('OPENAI_EXTRA_BODY')
         )
         messages = await client.ask(
-            {"role": "user", "content": "Hello."},
+            [{"role": "user", "content": "Hello."}],
             'text'
         )
-        return success_response(f'测试成功: {messages}')
+        return success_response('测试成功', f'{messages}')
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"测试失败: {e}")
 
