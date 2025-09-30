@@ -4,6 +4,7 @@ import json
 import os
 import secrets
 from datetime import datetime, timedelta
+from json import JSONDecodeError
 from typing import Optional
 
 import uvicorn
@@ -275,18 +276,21 @@ async def api_save_system(envs: dict):
 @app.post('/api/system/aitest', response_model=dict, dependencies=[Depends(verify_token)])
 async def api_aitest(config: dict):
     try:
+        extra_body = config.get('OPENAI_EXTRA_BODY')
         client = AiClient(
             base_url=config.get('OPENAI_BASE_URL'),
             api_key=config.get('OPENAI_API_KEY'),
             model_name=config.get('OPENAI_MODEL_NAME'),
             proxy=config.get('OPENAI_PROXY_URL'),
-            extra_body=config.get('OPENAI_EXTRA_BODY')
+            extra_body=json.loads(extra_body) if extra_body else None
         )
         messages = await client.ask(
             [{"role": "user", "content": "Hello."}],
             'text'
         )
         return success_response('测试成功', f'{messages}')
+    except JSONDecodeError:
+        raise HTTPException(status_code=500, detail=f"OPENAI_EXTRA_BODY: 无效JSON字符串")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"测试失败: {e}")
 
