@@ -12,10 +12,13 @@ from playwright.async_api import async_playwright, Page, TimeoutError, BrowserCo
 from src.agent.client import ai_client
 from src.agent.product_evaluator import ProductEvaluator
 from src.config import STATE_FILE, RUN_HEADLESS, USE_EDGE, RUNNING_IN_DOCKER, API_URL_PATTERN, DETAIL_API_URL_PATTERN, SKIP_AI_ANALYSIS
+from src.notify.notify_manger import NotificationManager
 from src.spider.parsers import parse_page, pares_product_detail_and_seller_info, pares_seller_detail_info
 from src.task.result import save_task_result
 from src.task.task import Task
 from src.utils.utils import random_sleep, safe_get
+
+notificationManager = NotificationManager()
 
 
 class ValidationError(Exception):
@@ -151,7 +154,8 @@ async def process_product(task: Task, product_api_data, base_data, context: Brow
             print(f'ai分析出错: {e}')
     print('写入数据')
     save_task_result(keyword, final_record)
-
+    print('推送通知')
+    notificationManager.notify(final_record)
 
 async def process_seller(seller_info: dict, context: BrowserContext):
     print(f"   -> 开始采集用户ID: {seller_info['卖家ID']} 的完整信息...")

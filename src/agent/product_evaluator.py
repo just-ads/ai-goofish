@@ -44,7 +44,7 @@ class ProductEvaluator:
         """步骤一：标题筛选，过滤不符合的商品"""
         prompt = (
             f"目标商品描述: {self.target_product.get('description')}\n"
-            f"当前商品标题: {self.product.get('商品标题')}\n\n"
+            f"当前商品标题: {self.product.get('商品标题', '')[0:15]}\n\n"
             "任务：判断该商品标题是否符合目标商品。请给出清晰的分析(analysis)，并返回 'suggestion' 字段 (0-100) 和简短 'reason' (中文)\n\n"
             "示例输出:\n"
             '{"analysis":"标题包含关键字且型号匹配。", "suggestion": 90, "reason":"标题匹配目标商品"}'
