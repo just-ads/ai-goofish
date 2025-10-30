@@ -15,12 +15,6 @@ class ProductEvaluator:
         self.seller = seller
         self.target_product = target_product
         self.history: List[Dict[str, Any]] = []
-        self.result: Dict[str, Any] = {
-            "steps": [],
-            "verdict": None,
-            "suggestion_score": 0,
-            "final_analysis": None
-        }
 
     async def _ask_ai(self, prompt: str, system_msg: Optional[str] = None) -> Dict[str, Any]:
         system_content = system_msg or (
@@ -50,7 +44,6 @@ class ProductEvaluator:
             '{"analysis":"标题包含关键字且型号匹配。", "suggestion": 90, "reason":"标题匹配目标商品"}'
         )
         reply = await self._ask_ai(prompt)
-        self.result["steps"].append({"step": "标题过滤", "reply": reply})
         return reply
 
     async def step_seller_info(self) -> Dict[str, Any]:
@@ -66,14 +59,6 @@ class ProductEvaluator:
         )
         reply = await self._ask_ai(prompt)
         self.history.append({"step": "卖家评估", "reply": reply})
-        score = 0
-        if isinstance(reply, dict) and "suggestion" in reply:
-            try:
-                score = int(reply["suggestion"])
-            except Exception:
-                score = 0
-        self.result["suggestion_score"] = score
-        self.result["steps"].append({"step": "seller_info", "suggestion": score, "reply": reply})
         return reply
 
     async def step_product(self, use_image: bool = False):
@@ -82,7 +67,7 @@ class ProductEvaluator:
             product.pop("images", None)
 
         prompt = (
-            f"这是上一步对卖家的分析结果：{json.dumps(self.history[0].get('reply'), ensure_ascii=False)}\n\n"
+            f"这是上一步对卖家的分析结果：{json.dumps(self.history[-1].get('reply'), ensure_ascii=False)}\n\n"
             f"这是目标商品描述: {self.target_product.get('description')}"
             "现在请结合卖家分析、目标商品描述和以下商品信息分析商品质量、可信度、商品符合度，给出 0-100 的建议度(suggestion)，并提供清晰的分析(analysis)和简短原因(reason, 中文)\n"
             f'商品信息：: {json.dumps(product, ensure_ascii=False)}\n\n'
@@ -90,39 +75,15 @@ class ProductEvaluator:
             '{"suggestion": 70, "analysis": "商家可信度高，商品质量良好，但描述不完全匹配", "reason":"基本符合购买需求"}'
         )
         reply = await self._ask_ai(prompt)
-        self.history.append({"step": "product_info", "reply": reply})
-        score = 0
-        if isinstance(reply, dict) and "suggestion" in reply:
-            try:
-                score = int(reply["suggestion"])
-            except Exception:
-                score = 0
-        self.result["suggestion_score"] = score
-        self.result["steps"].append({"step": "商品评估", "suggestion": score, "reply": reply})
+        self.history.append({"step": "商品分析", "reply": reply})
         return reply
 
     def synthesize_final(self) -> Dict[str, Any]:
-        """
-        parts: List[str] = []
-        for step in self.result["steps"]:
-            step_name = step.get("step")
-            reply = step.get("reply", {})
-            analysis = reply.get("analysis") if isinstance(reply, dict) else None
-            if analysis:
-                parts.append(f"{step_name}: {analysis}")
-            else:
-                fallback = (reply.get("reason") if isinstance(reply, dict) else None) or (reply.get("raw") if isinstance(reply, dict) else None)
-                if fallback:
-                    parts.append(f"{step_name}: {fallback}")
-                else:
-                    parts.append(f"{step_name}: 无可解析的分析输出")
-        """
+        last_step = self.history[-1]
+        reply = last_step.get('reply', {})
+        final_analysis = reply.get('analysis', '')
+        score = reply.get('suggestion', 0)
 
-        last_step = self.result["steps"][-1]
-
-        final_analysis = last_step.get('reply', {}).get('analysis', '')
-
-        score = self.result["suggestion_score"]
         if score >= 80:
             verdict_text = "非常建议购买"
         elif score >= 60:
@@ -143,15 +104,14 @@ class ProductEvaluator:
         执行完整分析流程。
         """
         self.history = []
-        self.result = {"steps": [], "verdict": None, "suggestion_score": 0, "final_analysis": None}
 
         # Step 1: 如果标题不符合目标商品，直接返回
         step1 = await self.step_title_filter()
         if step1.get('suggestion') < 50:
             return {
-                "verdict": 0,
-                "verdictText": "不建议购买",
-                "reason": "标题不符合目标商品，未进行详细分析"
+                "推荐度": 0,
+                "建议": "不建议购买",
+                "原因": "标题不符合目标商品，未进行详细分析"
             }
 
         # Step 2: 分析卖家画像
