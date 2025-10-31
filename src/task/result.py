@@ -54,7 +54,7 @@ async def get_task_result(keyword: str, page: int, limit: int = 20, recommended_
         async for line in f:
             record = json.loads(line)
             if recommended_only:
-                if record.get("ai_analysis", {}).get("is_recommended") is True:
+                if record.get("分析结果", {}).get("推荐度") >= 60:
                     results.append(record)
             else:
                 results.append(record)
