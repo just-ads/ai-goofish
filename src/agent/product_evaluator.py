@@ -1,7 +1,10 @@
-from typing import Dict, Any, List, Optional
 import json
 
+from datetime import datetime
+from typing import Dict, Any, List, Optional
+
 from src.agent.client import AiClient
+from src.utils.utils import dict_pick
 
 
 class ProductEvaluator:
@@ -9,17 +12,18 @@ class ProductEvaluator:
     商品评估器：按步骤调用 AI
     """
 
-    def __init__(self, client: AiClient, product: Dict[str, Any], seller: Dict[str, Any], target_product: Dict[str, Any]):
+    def __init__(self, client: AiClient, product: Dict[str, Any], seller: Dict[str, Any], history_prices: List | None, target_product: Dict[str, Any]):
         self.client = client
         self.product = product
         self.seller = seller
         self.target_product = target_product
+        self.history_prices = history_prices
         self.history: List[Dict[str, Any]] = []
 
     async def _ask_ai(self, prompt: str, system_msg: Optional[str] = None) -> Dict[str, Any]:
         system_content = system_msg or (
             "你是商品建议度评估助手。输出必须是 JSON，不要有多余文本\n"
-            "每个响应应包含字段：'analysis'(文字解释), 'suggestion'(0-100 的建议度), 'reason'(中文简短原因)"
+            "每个响应应包含字段：'analysis'(文字解释), 'suggestion'(0-100 的建议度), 'reason'(50-150个字的中文简短原因)"
         )
         message = [
             {"role": "system", "content": system_content},
@@ -44,6 +48,7 @@ class ProductEvaluator:
             '{"analysis":"标题包含关键字且型号匹配。", "suggestion": 90, "reason":"标题匹配目标商品"}'
         )
         reply = await self._ask_ai(prompt)
+        self.history.append({"step": "标题过滤", "reply": reply})
         return reply
 
     async def step_seller_info(self) -> Dict[str, Any]:
@@ -52,7 +57,7 @@ class ProductEvaluator:
         seller_info.pop('卖家ID', None)
 
         prompt = (
-            "现在请根据以下卖家信息建立卖家画像，给出 0-100 的建议度(suggestion)，并提供清晰的分析(analysis)和简短原因(reason, 中文)\n"
+            "根据以下卖家信息建立卖家画像，给出 0-100 的建议度(suggestion)，并提供清晰的分析(analysis)和简短原因(reason, 中文)\n"
             f"卖家信息: {json.dumps(seller_info, ensure_ascii=False)}\n\n"
             "示例输出:\n"
             '{"analysis": "卖家在售和已售数量高，回复率高", "suggestion": 80, "reason":"卖家信誉较好"}'
@@ -62,14 +67,16 @@ class ProductEvaluator:
         return reply
 
     async def step_product(self, use_image: bool = False):
-        product = self.product.copy()
-        if not use_image:
-            product.pop("images", None)
+        product = dict_pick(self.product, ['当前售价', '商品原价', '发布时间', '商品描述'])
+        # if not use_image:
+        #     product.pop("images", None)
 
         prompt = (
-            f"这是上一步对卖家的分析结果：{json.dumps(self.history[-1].get('reply'), ensure_ascii=False)}\n\n"
-            f"这是目标商品描述: {self.target_product.get('description')}"
-            "现在请结合卖家分析、目标商品描述和以下商品信息分析商品质量、可信度、商品符合度，给出 0-100 的建议度(suggestion)，并提供清晰的分析(analysis)和简短原因(reason, 中文)\n"
+            f"上一步对卖家的分析结果：{json.dumps(self.history[-1].get('reply'), ensure_ascii=False)}\n\n"
+            f"历史价格数据：{json.dumps(self.history_prices) if self.history_prices else 'null'}\n\n"
+            f"当前时间：{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}\n"
+            f"目标商品描述: {self.target_product.get('description')}"
+            "请结合卖家分析、目标商品描述和以下商品信息分析商品质量、可信度、商品符合度，给出 0-100 的建议度(suggestion)，并提供清晰的分析(analysis)和简短原因(reason, 中文)\n"
             f'商品信息：: {json.dumps(product, ensure_ascii=False)}\n\n'
             "示例输出:\n"
             '{"suggestion": 70, "analysis": "商家可信度高，商品质量良好，但描述不完全匹配", "reason":"基本符合购买需求"}'
@@ -108,11 +115,7 @@ class ProductEvaluator:
         # Step 1: 如果标题不符合目标商品，直接返回
         step1 = await self.step_title_filter()
         if step1.get('suggestion') < 50:
-            return {
-                "推荐度": 0,
-                "建议": "不建议购买",
-                "原因": "标题不符合目标商品，未进行详细分析"
-            }
+            return self.synthesize_final()
 
         # Step 2: 分析卖家画像
         step2 = await self.step_seller_info()

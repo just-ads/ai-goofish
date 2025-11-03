@@ -1,7 +1,10 @@
 import json
 import os
+from collections import defaultdict
 
 import aiofiles
+
+from src.utils.utils import clean_price
 
 output_dir = "jsonl"
 
@@ -42,11 +45,7 @@ async def get_task_result(keyword: str, page: int, limit: int = 20, recommended_
         if sort_by == "publish_time":
             return info.get("发布时间", "0000-00-00 00:00")
         elif sort_by == "price":
-            price_str = str(info.get("当前售价", "0")).replace("¥", "").replace(",", "").strip()
-            try:
-                return float(price_str)
-            except (ValueError, TypeError):
-                return 0.0
+            return clean_price(info.get("当前售价", "0"))
         else:
             return item.get("爬取时间", "")
 
@@ -72,3 +71,29 @@ async def get_task_result(keyword: str, page: int, limit: int = 20, recommended_
         "limit": limit,
         "items": paginated_results
     }
+
+
+async def get_product_prices(keyword: str):
+    filename = os.path.join(output_dir, f"{keyword.replace(' ', '_')}_full_data.jsonl")
+    prices_by_time = defaultdict(list)
+    async with aiofiles.open(filename, 'r', encoding='utf-8') as f:
+        async for line in f:
+            record = json.loads(line)
+            if record.get("分析结果", {}).get("推荐度") >= 30:
+                time = record.get('爬取时间')
+                price_str = record.get('商品信息', {}).get('当前售价', '0')
+                price = clean_price(price_str)
+                prices_by_time[time].append(price)
+
+    prices = []
+    for time, price_list in prices_by_time.items():
+        if not price_list:
+            continue
+        price_list.sort()
+        trimmed = price_list[1:-1] if len(price_list) > 2 else price_list
+        avg_price = sum(trimmed) / len(trimmed)
+        prices.append({'时间': time, '价格': f'￥{round(avg_price, 2)}'})
+
+    prices.sort(key=lambda it: it.get('时间'))
+
+    return prices

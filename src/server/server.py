@@ -19,7 +19,7 @@ from src.agent.client import AiClient
 from src.config import WEB_USERNAME, WEB_PASSWORD, SERVER_PORT, STATE_FILE, SECRET_KEY_FILE, get_envs, set_envs
 from src.server.scheduler import initialize_task_scheduler, shutdown_task_scheduler, add_task_to_scheduler, update_scheduled_task, run_task, remove_task_from_scheduler, \
     is_task_running, get_all_running_tasks, stop_task
-from src.task.result import get_task_result, remove_task_result
+from src.task.result import get_task_result, remove_task_result, get_product_prices
 from src.task.task import get_all_tasks, add_task, update_task, get_task, remove_task, TaskUpdate, TaskWithoutID
 
 
@@ -226,6 +226,18 @@ async def api_remove_task_results(task_id: int):
         return success_response("删除成功")
     except Exception:
         raise HTTPException(status_code=500, detail="删除失败")
+
+
+@app.get('/api/results/prices/{task_id}', response_model=dict, dependencies=[Depends(verify_token)])
+async def api_get_task_prices(task_id: int):
+    try:
+        task = await get_task(task_id)
+        if not task:
+            raise HTTPException(status_code=404, detail="任务未找到")
+        prices = await get_product_prices(task['keyword'])
+        return success_response('获取成功', prices)
+    except Exception:
+        raise HTTPException(status_code=500, detail="获取失败")
 
 
 # --------------- goofish 相关 ----------------
