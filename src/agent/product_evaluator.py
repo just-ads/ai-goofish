@@ -114,7 +114,7 @@ class ProductEvaluator:
 
         # Step 1: 如果标题不符合目标商品，直接返回
         step1 = await self.step_title_filter()
-        if step1.get('suggestion') < 50:
+        if step1.get('suggestion') < 30:
             return self.synthesize_final()
 
         # Step 2: 分析卖家画像
