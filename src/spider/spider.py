@@ -305,10 +305,10 @@ class GoofishSpider:
                 print("长时间休眠结束，现在将安全退出。")
                 print("===================================================================")
                 print("触发闲鱼反爬虫机制，将关闭浏览器")
-                await self.browser.close()
             except Exception as e:
                 print(f'程序发生错误 {e}')
-                await self.browser.close()
+
+            await self.browser.close()
 
         return len(self.processed_ids) - last_processed_count
 
