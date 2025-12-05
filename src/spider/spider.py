@@ -58,7 +58,7 @@ class GoofishSpider:
                             record = json.loads(line)
                             product_id = record.get('商品信息', {}).get('商品ID', '')
                             self.processed_ids.add(product_id)
-                            if record.get("分析结果", {}).get("推荐度") >= 30:
+                            if record.get("分析结果", {}).get("推荐度", 0) >= 30:
                                 time = record.get('爬取时间')
                                 price_str = record.get('商品信息', {}).get('当前售价', '0')
                                 price = clean_price(price_str)
