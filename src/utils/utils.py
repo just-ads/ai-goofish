@@ -87,29 +87,3 @@ def extract_id_from_url_regex(url: str) -> Optional[str]:
     except Exception as e:
         print(f"从URL提取id时发生错误: {url}, 错误: {e}")
         return None
-
-
-def create_id_url_map(urls: List[str]) -> Dict[str, str]:
-    """
-    从URL数组中提取id并创建 {id: url} 映射
-
-    Args:
-        urls (List[str]): URL列表
-
-    Returns:
-        Dict[str, str]: id到URL的映射字典
-    """
-    id_url_map = {}
-
-    for url in urls:
-        if not url:
-            continue
-
-        item_id = extract_id_from_url_regex(url)
-
-        if item_id:
-            id_url_map[item_id] = url
-        else:
-            print(f"跳过未包含id参数的URL: {url}")
-
-    return id_url_map
