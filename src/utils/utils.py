@@ -2,7 +2,7 @@ import asyncio
 import random
 import re
 
-from typing import Optional, List, Dict
+from typing import Optional
 
 
 def get_id_by_url(url: str):
