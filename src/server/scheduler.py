@@ -10,6 +10,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
 from src.config import MAX_CONCURRENT_TASKS
+from src.server.trigger import RandomOffsetTrigger
 from src.task.task import get_all_tasks, Task
 
 # 任务进程表与运行状态缓存
@@ -156,7 +157,9 @@ def add_task_to_scheduler(task: Task):
     if not (is_enabled and cron_str):
         return
 
-    trigger = CronTrigger.from_crontab(cron_str)
+    # trigger = CronTrigger.from_crontab(cron_str)
+    # 使用自定义随机触发器
+    trigger = RandomOffsetTrigger(CronTrigger.from_crontab(cron_str), 1800)
     scheduler.add_job(
         run_task,
         trigger=trigger,

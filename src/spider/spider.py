@@ -110,20 +110,31 @@ class GoofishSpider:
 
     async def process_page(self, page_data: dict):
         """处理单页商品列表"""
-        product_basic_info = parse_page(page_data)
+        product_list = parse_page(page_data)
+
+        print(f'共有 {len(product_list)} 个商品，正在随机化处理顺序...')
+        random.shuffle(product_list)
+        print(f'随机化完成，将按随机顺序处理商品')
 
         detail_page = await self.browser_context.new_page()
-        print(f'共有 {len(product_basic_info)} 个商品')
 
-        for i, item in enumerate(product_basic_info):
+        new_products = [item for item in product_list if item.get('商品ID') not in self.processed_ids]
+        print(f'其中 {len(new_products)} 个是新商品，{len(product_list) - len(new_products)} 个已处理过')
+
+        for i, item in enumerate(product_list):
             if os.getenv('DEBUG') and i > 1:
                 await detail_page.close()
                 return
+
             product_id = item.get('商品ID')
+
             if product_id in self.processed_ids:
+                print(f'跳过已处理商品: {product_id}')
                 continue
 
             product_url = item.get('商品链接')
+
+            await random_sleep(1, 3)
 
             async with detail_page.expect_response(lambda r: DETAIL_API_URL_PATTERN in r.url, timeout=25000) as detail_info:
                 await detail_page.goto(product_url, wait_until="domcontentloaded", timeout=25000)
