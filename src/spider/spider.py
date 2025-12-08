@@ -8,16 +8,16 @@ from collections import defaultdict
 from datetime import datetime
 from urllib.parse import urlencode
 
-from playwright.async_api import async_playwright, Page, TimeoutError
+from playwright.async_api import async_playwright, Page, TimeoutError, Locator
 
 from src.agent.client import ai_client
 from src.agent.product_evaluator import ProductEvaluator
-from src.config import STATE_FILE, RUN_HEADLESS, USE_EDGE, RUNNING_IN_DOCKER, API_URL_PATTERN, DETAIL_API_URL_PATTERN, SKIP_AI_ANALYSIS
+from src.config import STATE_FILE, RUN_HEADLESS, USE_EDGE, RUNNING_IN_DOCKER, DETAIL_API_URL_PATTERN, SKIP_AI_ANALYSIS
 from src.notify.notify_manger import NotificationManager
-from src.spider.parsers import parse_page, pares_product_detail_and_seller_info, pares_seller_detail_info
+from src.spider.parsers import pares_product_info_and_seller_info, pares_seller_detail_info
 from src.task.result import save_task_result
 from src.task.task import Task
-from src.utils.utils import random_sleep, safe_get, clean_price
+from src.utils.utils import random_sleep, safe_get, clean_price, extract_id_from_url_regex
 
 
 class ValidationError(Exception):
@@ -108,42 +108,53 @@ class GoofishSpider:
         print("\nLOG: 未检测到任何反爬虫验证弹窗")
         return False
 
-    async def process_page(self, page_data: dict):
+    async def process_product_list(self, product_list: list[Locator]):
         """处理单页商品列表"""
-        product_list = parse_page(page_data)
-
         print(f'共有 {len(product_list)} 个商品，正在随机化处理顺序...')
         random.shuffle(product_list)
         print(f'随机化完成，将按随机顺序处理商品')
 
         detail_page = await self.browser_context.new_page()
 
-        new_products = [item for item in product_list if item.get('商品ID') not in self.processed_ids]
-        print(f'其中 {len(new_products)} 个是新商品，{len(product_list) - len(new_products)} 个已处理过')
-
         for i, item in enumerate(product_list):
             if os.getenv('DEBUG') and i > 1:
-                await detail_page.close()
                 return
 
-            product_id = item.get('商品ID')
+            product_url = await item.get_attribute('href')
+            print(f'商品连接: {product_url}')
+
+            product_id = extract_id_from_url_regex(product_url)
+            if product_id is None:
+                print(f'商品id提取失败')
+                continue
+            print(f'商品id提取成功{product_id}')
 
             if product_id in self.processed_ids:
-                print(f'跳过已处理商品: {product_id}')
+                print(f'商品 {product_id} 已处理过，跳过')
                 continue
 
-            product_url = item.get('商品链接')
+            # 模拟用户操作得到新链接
+            await item.dispatch_event('mousedown')
+            await item.dispatch_event('mousemove')
+            await item.dispatch_event('mouseup')
 
-            await random_sleep(1, 3)
+            real_url = await item.get_attribute('href')
+
+            print(f'真实点击链接: {real_url}')
 
             async with detail_page.expect_response(lambda r: DETAIL_API_URL_PATTERN in r.url, timeout=25000) as detail_info:
-                await detail_page.goto(product_url, wait_until="domcontentloaded", timeout=25000)
-
+                await detail_page.goto(real_url, wait_until="domcontentloaded", timeout=25000)
                 try:
                     detail_response = await detail_info.value
                     if detail_response.ok:
-                        await self.process_product(await detail_response.json(), item)
-                        self.processed_ids.add(product_id)  # 处理成功后添加到已处理集合
+                        await self.process_product(
+                            await detail_response.json(),
+                            {
+                                'product_id': product_id,
+                                'product_url': product_url,
+                            }
+                        )
+                        self.processed_ids.add(product_id)
                 except ValidationError as e:
                     raise e
                 except TimeoutError:
@@ -153,18 +164,19 @@ class GoofishSpider:
 
             await random_sleep(5, 10)
 
+        await random_sleep(5, 10)
         await detail_page.close()
 
-    async def process_product(self, product_api_data, base_data):
+    async def process_product(self, product_api_data, base_product_info):
         """处理商品详情页"""
-        print(f'开始处理商品 {base_data["商品标题"][0:10]}')
+        print(f'开始处理商品 {base_product_info.get('product_id')}')
 
         ret_string = str(safe_get(product_api_data, 'ret', default=[]))
 
         if "FAIL_SYS_USER_VALIDATE" in ret_string:
             raise ValidationError('FAIL_SYS_USER_VALIDATE')
 
-        product_data, seller_base_info = pares_product_detail_and_seller_info(product_api_data, base_data)
+        product_info, seller_base_info = pares_product_info_and_seller_info(product_api_data, base_product_info)
 
         seller_info = await self.process_seller(seller_base_info)
 
@@ -174,7 +186,7 @@ class GoofishSpider:
             "爬取时间": self.crawl_time,
             "搜索关键字": keyword,
             "任务名称": self.task.get('task_name', 'Untitled Task'),
-            "商品信息": product_data,
+            "商品信息": product_info,
             "卖家信息": seller_info
         }
 
@@ -183,7 +195,7 @@ class GoofishSpider:
             try:
                 product_evaluator = ProductEvaluator(
                     ai_client,
-                    product_data,
+                    product_info,
                     seller_info,
                     self.history_prices,
                     {"description": self.task.get('description')}
@@ -284,28 +296,26 @@ class GoofishSpider:
                 print("\nLOG: 所有筛选已完成")
 
                 page_tiny = await page.locator('span[class*="search-page-tiny-page"]').first.text_content()
+                page_btn = await page.locator('div[class*="search-pagination-page-box"]').all()
 
                 o_max_page = self.get_max_page(page_tiny)
 
                 max_page = min(o_max_page, max_pages)
 
-                print(f"\nLOG: 共有 {o_max_page} 页，需处理 {max_page} 页")
+                print(f"\nLOG: 共有 {o_max_page} 页，设置最大处理 {max_pages} 页，实际需处理 {max_page} 页")
 
                 for page_num in range(1, max_pages + 1):
-                    page_btn = await page.locator('div[class*="search-pagination-page-box"]').all()
-                    async with page.expect_response(lambda r: API_URL_PATTERN in r.url, timeout=20000) as response_info:
-                        try:
-                            print(f"\n--- 正在处理第 {page_num}/{max_pages} 页 ---")
-                            await page_btn[page_num - 1].click()
-                            current_response = await response_info.value
-                            data = await current_response.json()
-                            await self.process_page(data)
-                            print(f"\n--- 第 {page_num}/{max_pages} 页处理完成 ---")
-                        except ValidationError as e:
-                            raise e
-                        except Exception as e:
-                            print(e)
-                            print(f'\n--- 第 {page_num}/{max_pages} 页处理失败 ---')
+                    try:
+                        print(f"\n--- 正在处理第 {page_num}/{max_pages} 页 ---")
+                        await page_btn[page_num - 1].click()
+                        await random_sleep(10, 20)
+                        product_list = await page.locator('a[class*="feeds-item-wrap"]').all()
+                        await self.process_product_list(product_list)
+                    except ValidationError as e:
+                        raise e
+                    except Exception as e:
+                        print(e)
+                        print(f'\n--- 第 {page_num}/{max_pages} 页处理失败 ---')
 
             except ValidationError as e:
                 print("\n==================== CRITICAL BLOCK DETECTED ====================")
@@ -331,7 +341,7 @@ async def main(debug: bool = False):
     )
     parser.add_argument("--debug", type=bool, default=False, help="调试模式：每个任务仅处理每页前 2 个新商品")
     parser.add_argument("--tasks", type=str, default="tasks.json", help="指定任务配置文件路径（默认为 tasks.json）")
-    parser.add_argument("--task-id", type=int, help="运行指定id的单个任务 (用于定时任务调度)")
+    parser.add_argument("--task-id", type=int, default=None, help="运行指定id的单个任务 (用于定时任务调度)")
 
     args = parser.parse_args()
 
@@ -354,7 +364,7 @@ async def main(debug: bool = False):
 
     active_tasks = []
 
-    if args.task_id:
+    if args.task_id is not None:
         task = next((it for it in tasks if it['task_id'] == args.task_id), None)
         if not task:
             print(f"错误：在配置文件中未找到id为 '{args.task_id}' 的任务。")

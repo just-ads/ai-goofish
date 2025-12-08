@@ -1,5 +1,8 @@
 import asyncio
 import random
+import re
+
+from typing import Optional, List, Dict
 
 
 def get_id_by_url(url: str):
@@ -50,3 +53,63 @@ def dict_pick(src: dict, keys: list, default=None, strict=False) -> dict:
     else:
         # 宽松模式：不存在的键使用默认值
         return {k: src.get(k, default) for k in keys}
+
+
+def extract_id_from_url_regex(url: str) -> Optional[str]:
+    """
+    使用正则表达式从URL中提取id参数
+
+    Args:
+        url (str): 要提取id的URL
+
+    Returns:
+        Optional[str]: 提取到的id，如果未找到则返回None
+    """
+    if not url or not isinstance(url, str):
+        print(f"无效的URL输入: {url}")
+        return None
+
+    try:
+        # 正则表达式匹配 id= 后面跟着的数字
+        # 支持多种可能的格式：
+        # 1. id=123456
+        # 2. &id=123456
+        # 3. ?id=123456
+        # 4. id=123456& 或 id=123456? 或 id=123456
+        pattern = r'(?:[?&]id=)(\d+)'
+        match = re.search(pattern, url)
+
+        if match:
+            return match.group(1)
+        else:
+            print(f"URL中未找到id参数: {url}")
+            return None
+    except Exception as e:
+        print(f"从URL提取id时发生错误: {url}, 错误: {e}")
+        return None
+
+
+def create_id_url_map(urls: List[str]) -> Dict[str, str]:
+    """
+    从URL数组中提取id并创建 {id: url} 映射
+
+    Args:
+        urls (List[str]): URL列表
+
+    Returns:
+        Dict[str, str]: id到URL的映射字典
+    """
+    id_url_map = {}
+
+    for url in urls:
+        if not url:
+            continue
+
+        item_id = extract_id_from_url_regex(url)
+
+        if item_id:
+            id_url_map[item_id] = url
+        else:
+            print(f"跳过未包含id参数的URL: {url}")
+
+    return id_url_map
