@@ -20,7 +20,6 @@ DETAIL_API_URL_PATTERN = "h5api.m.goofish.com/h5/mtop.taobao.idle.pc.detail"
 # --- User ---
 WEB_USERNAME = os.getenv("WEB_USERNAME", 'admin')
 WEB_PASSWORD = os.getenv("WEB_PASSWORD", 'admin')
-# SECRET_KEY = os.getenv("SECRET_KEY")
 
 # --- Environment Variables ---
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", '')
@@ -40,17 +39,29 @@ WEBHOOK_CONTENT_TYPE = os.getenv("WEBHOOK_CONTENT_TYPE", "JSON").upper()
 WEBHOOK_QUERY_PARAMETERS = os.getenv("WEBHOOK_QUERY_PARAMETERS", '')
 WEBHOOK_BODY = os.getenv("WEBHOOK_BODY", '')
 PCURL_TO_MOBILE = os.getenv("PCURL_TO_MOBILE", "false").lower() == "true"
-RUN_HEADLESS = os.getenv("RUN_HEADLESS", "true").lower() != "false"
-USE_EDGE = os.getenv("LOGIN_IS_EDGE", "false").lower() == "true"
+BROWSER_HEADLESS = os.getenv("RUN_HEADLESS", "true").lower() != "false"
+BROWSER_CHANNEL = os.getenv("BROWSER_CHANNEL", "chrome").lower()
 RUNNING_IN_DOCKER = os.getenv("RUNNING_IN_DOCKER", "false").lower() == "true"
-AI_DEBUG_MODE = os.getenv("AI_DEBUG_MODE", "false").lower() == "true"
 SKIP_AI_ANALYSIS = os.getenv("SKIP_AI_ANALYSIS", "false").lower() == "true"
 SERVER_PORT = 8000
 MAX_CONCURRENT_TASKS = 3
 
+# 有效的浏览器通道列表
+VALID_BROWSER_CHANNELS = ["chrome", "msedge", "firefox"]
+
+# 处理部分配置
 try:
     MAX_CONCURRENT_TASKS = int(os.getenv("MAX_CONCURRENT_TASKS", "3"))
     SERVER_PORT = int(os.getenv("SERVER_PORT", "8000"))
+    if BROWSER_CHANNEL not in VALID_BROWSER_CHANNELS:
+        print(f"警告：无效的 BROWSER_CHANNEL '{BROWSER_CHANNEL}'。将使用默认值 'chrome'。")
+        BROWSER_CHANNEL = 'chrome'
+
+    if RUNNING_IN_DOCKER:
+        print(f"提示：部署在DOCKER中，将强制使用无头模式和chrome。")
+        BROWSER_CHANNEL = 'chrome'
+        BROWSER_HEADLESS = True
+
     if OPENAI_EXTRA_BODY:
         OPENAI_EXTRA_BODY = json.loads(OPENAI_EXTRA_BODY)
 except ValueError as e:
@@ -59,6 +70,8 @@ except ValueError as e:
 if not all([OPENAI_BASE_URL, OPENAI_MODEL_NAME]):
     print("警告：未在 .env 文件中完整设置 OPENAI_BASE_URL 和 OPENAI_MODEL_NAME。AI相关功能可能无法使用。")
     SKIP_AI_ANALYSIS = True
+else:
+    SKIP_AI_ANALYSIS = False
 
 
 def get_envs():

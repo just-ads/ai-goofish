@@ -120,15 +120,22 @@ python start.py
 
 ## 环境变量说明
 
-| 变量名                | 默认值 / 示例 | 说明                                     |
-|--------------------|----------|----------------------------------------|
-| **RUN_HEADLESS**   | `true`   | 爬虫是否以无头模式运行 (true/false)，本地调试可设为 false |
-| **SERVER_PORT**    | `8000`   | 服务运行端口，默认 8000                         |
-| **WEB_USERNAME**   | `admin`  | Web 服务登录用户名                            |
-| **WEB_PASSWORD**   | `admin`  | Web 服务登录密码                             |
-| **NTFY_TOPIC_URL** | ``       | ntfy 通知服务地址                            |
-| **GOTIFY_URL**     | ``       | Gotify 通知服务地址                          |
-| **GOTIFY_TOKEN**   | ``       | Gotify 通知服务地址 Token                    |
+| 变量名               | 默认值 / 示例   | 说明                                                                                             |
+|-------------------|------------|------------------------------------------------------------------------------------------------|
+| OPENAI_API_KEY    |            | OpenAI API Key，用于调用 AI 商品评估模块。若不使用 AI 分析，可留空或配合 SKIP_AI_ANALYSIS 开关。                           |
+| OPENAI_BASE_URL   |            | OpenAI API 基础地址，支持自定义（例如企业或私有代理地址）。                                                            |
+| OPENAI_MODEL_NAME |            | 使用的模型名称。需与所使用的 OpenAI 实例或兼容模型对应。                                                               |
+| OPENAI_EXTRA_BODY | （JSON 字符串） | 可选的额外请求体字段，会以 JSON 字符串形式传入 OpenAI 客户端的 extra_body（例如 {"max_tokens":1024}）。若设置请确保为有效的 JSON 字符串。 |
+| OPENAI_PROXY_URL  |            | 可选的代理地址，用于向 OpenAI 发送请求时走代理（支持 http/https/socks）。                                              |
+| SKIP_AI_ANALYSIS  | `false`    | 是否跳过 AI 商品分析模块。设置为 true 可完全禁用对 OpenAI 的调用。                                                     |
+| BROWSER_HEADLESS  | `true`     | Playwright 是否以无头模式运行（true/false）。本地调试时建议设为 false。使用docker部署时将忽略。                               |
+| BROWSER_CHANNEL   | `chrome`   | Playwright 浏览器通道：chrome、msedge、firefox 等， 使用docker部署时将忽略。                                      |
+| SERVER_PORT       | `8000`     | Web 服务运行端口，默认 8000。                                                                            |
+| WEB_USERNAME      | `admin`    | Web 管理界面登录用户名。                                                                                 |
+| WEB_PASSWORD      | `admin`    | Web 管理界面登录密码。                                                                                  |
+| NTFY_TOPIC_URL    |            | ntfy 通知服务地址（示例: https://ntfy.sh/your-topic），配置后系统可发送通知到 ntfy。                                  |
+| GOTIFY_URL        |            | Gotify 服务地址（不含 token），例如 https://gotify.example.com。                                           |
+| GOTIFY_TOKEN      |            | Gotify 访问 Token，与 GOTIFY_URL 配合使用以发送通知。                                                        |
 
 ------------------------------------------------------------------------
 

@@ -12,7 +12,7 @@ from playwright.async_api import async_playwright, Page, TimeoutError, Locator
 
 from src.agent.client import ai_client
 from src.agent.product_evaluator import ProductEvaluator
-from src.config import STATE_FILE, RUN_HEADLESS, USE_EDGE, RUNNING_IN_DOCKER, DETAIL_API_URL_PATTERN, SKIP_AI_ANALYSIS
+from src.config import STATE_FILE, BROWSER_HEADLESS, DETAIL_API_URL_PATTERN, SKIP_AI_ANALYSIS, BROWSER_CHANNEL
 from src.notify.notify_manger import NotificationManager
 from src.spider.parsers import pares_product_info_and_seller_info, pares_seller_detail_info
 from src.task.result import save_task_result
@@ -235,8 +235,8 @@ class GoofishSpider:
 
         async with async_playwright() as p:
             self.browser = await p.chromium.launch(
-                headless=RUN_HEADLESS,
-                channel="msedge" if USE_EDGE else "chrome" if not RUNNING_IN_DOCKER else None
+                headless=BROWSER_HEADLESS,
+                channel=BROWSER_CHANNEL
             )
             self.browser_context = await self.browser.new_context(
                 storage_state=STATE_FILE if has_state_file else None,
