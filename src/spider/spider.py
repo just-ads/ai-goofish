@@ -4,7 +4,6 @@ import json
 import os
 import random
 import sys
-from collections import defaultdict
 from datetime import datetime
 from urllib.parse import urlencode
 
@@ -15,10 +14,10 @@ from src.agent.product_evaluator import ProductEvaluator
 from src.config import STATE_FILE, BROWSER_HEADLESS, DETAIL_API_URL_PATTERN, SKIP_AI_ANALYSIS, BROWSER_CHANNEL
 from src.notify.notify_manger import NotificationManager
 from src.spider.parsers import pares_product_info_and_seller_info, pares_seller_detail_info
-from src.task.result import save_task_result
+from src.task.result import save_task_result, get_result_filename, get_product_history_info
 from src.task.task import Task
 from src.utils.logger import logger
-from src.utils.utils import random_sleep, safe_get, clean_price, extract_id_from_url_regex
+from src.utils.utils import random_sleep, safe_get, extract_id_from_url_regex
 
 
 class ValidationError(Exception):
@@ -45,42 +44,20 @@ class GoofishSpider:
     def _init_output_filename(self):
         """初始化输出文件名"""
         keyword = self.task.get('keyword')
-        self.output_filename = os.path.join("jsonl", f"{keyword.replace(' ', '_')}_full_data.jsonl")
+        self.output_filename = get_result_filename(keyword)
         logger.debug("输出文件名初始化为: {}", self.output_filename)
 
-    def get_history(self):
+    async def get_history(self):
         """获取历史记录"""
         if os.path.exists(self.output_filename):
             logger.info("发现已存在文件 {}，正在加载历史记录...", self.output_filename)
-            prices_by_time = defaultdict(list)
+            keyword = self.task.get('keyword')
             try:
-                with open(self.output_filename, 'r', encoding='utf-8') as f:
-                    for line in f:
-                        try:
-                            record = json.loads(line)
-                            product_id = record.get('商品信息', {}).get('商品ID', '')
-                            self.processed_ids.add(product_id)
-                            if record.get("分析结果", {}).get("推荐度", 0) >= 30:
-                                time = record.get('爬取时间')
-                                price_str = record.get('商品信息', {}).get('当前售价', '0')
-                                price = clean_price(price_str)
-                                prices_by_time[time].append(price)
-
-                        except json.JSONDecodeError:
-                            logger.warning("文件中有一行无法解析为JSON，已跳过。")
-                prices = []
-                for time, price_list in prices_by_time.items():
-                    if not price_list:
-                        continue
-                    price_list.sort()
-                    trimmed = price_list[1:-1] if len(price_list) > 2 else price_list
-                    avg_price = sum(trimmed) / len(trimmed)
-                    prices.append({'时间': time, '价格': f'￥{round(avg_price, 2)}'})
-
-                prices.sort(key=lambda it: it.get('时间'))
-                self.history_prices = prices
+                history_info = await get_product_history_info(keyword)
+                self.history_prices = history_info['prices']
+                self.processed_ids = history_info['processed']
                 logger.info("加载完成，已记录 {} 个已处理过的商品。", len(self.processed_ids))
-            except IOError as e:
+            except Exception as e:
                 logger.error("读取历史文件时发生错误: {}", e)
         else:
             logger.info("输出文件 {} 不存在，将创建新文件。", self.output_filename)
@@ -236,7 +213,7 @@ class GoofishSpider:
 
         has_state_file = os.path.exists(STATE_FILE)
 
-        last_processed_count = self.get_history()
+        last_processed_count = await self.get_history()
 
         async with async_playwright() as p:
             self.browser = await p.chromium.launch(

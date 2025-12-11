@@ -9,10 +9,14 @@ from src.utils.utils import clean_price
 output_dir = "jsonl"
 
 
+def get_result_filename(keyword: str) -> str:
+    return os.path.join(output_dir, f"{keyword.replace(' ', '_')}_full_data.jsonl")
+
+
 def save_task_result(keyword: str, data_record: dict):
     """将一个包含商品和卖家信息的完整记录追加保存到 .jsonl 文件。"""
     os.makedirs(output_dir, exist_ok=True)
-    filename = os.path.join(output_dir, f"{keyword.replace(' ', '_')}_full_data.jsonl")
+    filename = get_result_filename(keyword)
     try:
         with open(filename, "a", encoding="utf-8") as f:
             f.write(json.dumps(data_record, ensure_ascii=False) + "\n")
@@ -23,14 +27,14 @@ def save_task_result(keyword: str, data_record: dict):
 
 
 def remove_task_result(keyword: str):
-    filename = os.path.join(output_dir, f"{keyword.replace(' ', '_')}_full_data.jsonl")
+    filename = get_result_filename(keyword)
     if os.path.exists(filename):
         os.remove(filename)
 
 
 async def get_task_result(keyword: str, page: int, limit: int = 20, recommended_only: bool = False, sort_by: str = "crawl_time", order: str = "asce"):
     results = []
-    filename = os.path.join(output_dir, f"{keyword.replace(' ', '_')}_full_data.jsonl")
+    filename = get_result_filename(keyword)
 
     if not os.path.exists(filename):
         return {
@@ -73,12 +77,16 @@ async def get_task_result(keyword: str, page: int, limit: int = 20, recommended_
     }
 
 
-async def get_product_prices(keyword: str):
-    filename = os.path.join(output_dir, f"{keyword.replace(' ', '_')}_full_data.jsonl")
+async def get_product_history_info(keyword: str):
+    filename = get_result_filename(keyword)
     prices_by_time = defaultdict(list)
+    ids = set()
+
     async with aiofiles.open(filename, 'r', encoding='utf-8') as f:
         async for line in f:
             record = json.loads(line)
+            product_id = record.get('商品信息', {}).get('商品ID', '')
+            ids.add(product_id)
             if record.get("分析结果", {}).get("推荐度") >= 30:
                 time = record.get('爬取时间')
                 price_str = record.get('商品信息', {}).get('当前售价', '0')
@@ -96,4 +104,7 @@ async def get_product_prices(keyword: str):
 
     prices.sort(key=lambda it: it.get('时间'))
 
-    return prices
+    return {
+        'processed': ids,
+        'prices': prices,
+    }
