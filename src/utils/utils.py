@@ -4,6 +4,8 @@ import re
 
 from typing import Optional
 
+from src.utils.logger import logger
+
 
 def get_id_by_url(url: str):
     import re
@@ -13,7 +15,7 @@ def get_id_by_url(url: str):
 
 async def random_sleep(min_seconds: float, max_seconds: float):
     delay = random.uniform(min_seconds, max_seconds)
-    print(f"[延迟] 等待 {delay:.2f} 秒... (范围: {min_seconds}-{max_seconds}s)")
+    logger.info("等待 {:.2f} 秒... (范围: {}-{}s)", delay, min_seconds, max_seconds)
     await asyncio.sleep(delay)
 
 

@@ -14,10 +14,9 @@ class NotificationManager:
             self.notifiers.append(GotifyNotifier(GOTIFY_URL, GOTIFY_TOKEN))
 
     def notify(self, task_result: dict):
-        analysis = task_result.get('分析结果', None)
-        if analysis:
-            if analysis.get('推荐度', 0) < 60:
-                return
+        analysis = task_result.get('分析结果', {})
+        if analysis.get('推荐度', 0) < 60:
+            return
 
         for notifier in self.notifiers:
             notifier.send(task_result)

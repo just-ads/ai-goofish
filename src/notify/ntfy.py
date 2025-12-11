@@ -1,5 +1,7 @@
 import requests
 
+from src.utils.logger import logger
+
 
 def score_tags(score: int):
     if score >= 80:
@@ -17,6 +19,7 @@ class NtfyNotifier:
         self.topic_url = topic_url.rstrip('/')
 
     def send(self, task_result: dict):
+        logger.info("推送 [Ntfy] 通知，地址为：{}", self.topic_url)
         try:
             product = task_result['商品信息']
             analysis = task_result.get('分析结果', {})
@@ -38,4 +41,4 @@ class NtfyNotifier:
             }
             requests.post(self.topic_url, data='\n'.join(lines).encode('utf-8'), headers=headers, timeout=30)
         except Exception as e:
-            print(f'[Ntfy] 通知失败: {e}')
+            logger.error("[Ntfy] 通知失败: {}", e)

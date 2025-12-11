@@ -133,7 +133,7 @@ python start.py
 | SERVER_PORT       | `8000`     | Web 服务运行端口，默认 8000。                                                                            |
 | WEB_USERNAME      | `admin`    | Web 管理界面登录用户名。                                                                                 |
 | WEB_PASSWORD      | `admin`    | Web 管理界面登录密码。                                                                                  |
-| NTFY_TOPIC_URL    |            | ntfy 通知服务地址（示例: https://ntfy.sh/your-topic），配置后系统可发送通知到 ntfy。                                  |
+| NTFY_TOPIC_URL    |            | ntfy 通知服务地址（示例: https://ntfy.sh/your-topic ），配置后系统可发送通知到 ntfy。                                 |
 | GOTIFY_URL        |            | Gotify 服务地址（不含 token），例如 https://gotify.example.com。                                           |
 | GOTIFY_TOKEN      |            | Gotify 访问 Token，与 GOTIFY_URL 配合使用以发送通知。                                                        |
 
