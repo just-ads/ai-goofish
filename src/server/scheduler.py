@@ -33,6 +33,16 @@ def _is_process_alive(pid: Optional[int]) -> bool:
         return False
 
 
+async def _wait_for_process_termination(pid: int, timeout: float = 5.0) -> bool:
+    """等待进程终止，返回是否成功终止"""
+    start_time = asyncio.get_event_loop().time()
+    while asyncio.get_event_loop().time() - start_time < timeout:
+        if not _is_process_alive(pid):
+            return True
+        await asyncio.sleep(0.1)
+    return False
+
+
 def terminate_process(task_id: int) -> bool:
     """终止指定 task_id 的子进程；返回值表示**此前**该任务是否处于运行状态。"""
     pid = scraper_processes.get(task_id)
@@ -48,25 +58,46 @@ def terminate_process(task_id: int) -> bool:
 
     try:
         if sys.platform == "win32":
+            # Windows: 直接使用 taskkill，更可靠
             try:
-                os.kill(pid, signal.CTRL_BREAK_EVENT)
-                logger.debug(f"Windows: 发送 CTRL_BREAK_EVENT 到 PID {pid}")
+                subprocess.run(
+                    ["taskkill", "/PID", str(pid), "/T", "/F"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    check=True,
+                    timeout=3
+                )
+                logger.debug(f"Windows: 使用 taskkill 终止进程 {pid}")
+            except subprocess.TimeoutExpired:
+                logger.warning(f"taskkill 超时，尝试强制终止")
+                subprocess.run(
+                    ["taskkill", "/PID", str(pid), "/T", "/F"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL
+                )
             except Exception as e:
-                logger.warning(f"CTRL_BREAK_EVENT 失败: {e}, 尝试 taskkill")
-                subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"],
-                               stdout=subprocess.DEVNULL,
-                               stderr=subprocess.DEVNULL,
-                               check=True)
+                logger.warning(f"taskkill 失败: {e}")
         else:
+            # Unix: 尝试优雅终止，然后强制终止
             try:
-                pgid = os.getpgid(pid)
-                os.killpg(pgid, signal.SIGTERM)
-                logger.debug(f"Unix: 发送 SIGTERM 到进程组 {pgid}")
-            except Exception as e:
-                logger.warning(f"终止进程组失败: {e}, 尝试终止单个进程")
+                # 先尝试 SIGTERM
                 os.kill(pid, signal.SIGTERM)
-    except ProcessLookupError:
-        logger.debug(f"进程 {pid} 已不存在")
+                logger.debug(f"Unix: 发送 SIGTERM 到进程 {pid}")
+
+                # 等待进程退出
+                try:
+                    os.waitpid(pid, os.WNOHANG)
+                except ChildProcessError:
+                    pass
+
+            except ProcessLookupError:
+                logger.debug(f"进程 {pid} 已不存在")
+            except Exception as e:
+                logger.warning(f"SIGTERM 失败: {e}, 尝试 SIGKILL")
+                try:
+                    os.kill(pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
     except Exception as e:
         logger.error(f"终止进程 {pid} 时发生错误: {e}")
     finally:
@@ -109,7 +140,7 @@ def shutdown_task_scheduler():
 
     try:
         scheduler.remove_all_jobs()
-        logger.debug("已移除所有调度器作业")
+        logger.debug("已移除所有调度器任务")
 
         if scheduler.running:
             scheduler.shutdown()
@@ -174,6 +205,8 @@ async def run_task(task_id: int, task_name: str):
 
     except asyncio.CancelledError:
         logger.warning(f"任务 '{task_name}' (ID: {task_id}) 被取消")
+        if task_id in scraper_processes:
+            terminate_process(task_id)
         raise
     except Exception as e:
         logger.error(f"执行任务 '{task_name}' (ID: {task_id}) 时发生错误: {e}")
@@ -202,9 +235,9 @@ def remove_task_from_scheduler(task_id: int):
     job_id = f'task_{task_id}'
     try:
         scheduler.remove_job(job_id)
-        logger.debug(f"已从调度器移除作业 {job_id}")
+        logger.debug(f"已从调度器移除任务 {job_id}")
     except JobLookupError:
-        logger.warning(f"作业 {job_id} 不存在于调度器中")
+        logger.warning(f"任务 {job_id} 不存在于调度器中")
     finally:
         was_running = terminate_process(task_id)
         if was_running:
@@ -223,7 +256,6 @@ def add_task_to_scheduler(task: Task):
         logger.warning(f"任务 '{task_name}' (ID: {task_id}) 未启用或无cron配置，跳过调度")
         return
 
-    # trigger = CronTrigger.from_crontab(cron_str)
     # 使用自定义随机触发器
     trigger = RandomOffsetTrigger(CronTrigger.from_crontab(cron_str), 1800)
 
@@ -249,11 +281,14 @@ async def update_scheduled_task(task: Task):
     job_id = f'task_{task_id}'
     was_running = is_task_running(task_id)
 
+    # 先停止正在运行的任务
     if was_running:
         logger.info(f"任务 {task_id} 正在运行，先停止")
+        terminate_process(task_id)
+        # 等待一小段时间确保进程完全停止
+        await asyncio.sleep(0.5)
 
-    was_terminated = terminate_process(task_id)
-
+    # 更新调度器中的任务
     try:
         scheduler.remove_job(job_id)
         logger.debug(f"已移除旧任务 {job_id}")
@@ -262,8 +297,4 @@ async def update_scheduled_task(task: Task):
 
     add_task_to_scheduler(task)
 
-    if was_terminated:
-        logger.info(f"更新任务: 重新启动任务 {task_id}")
-        await run_task(task_id, task_name)
-    else:
-        logger.info(f"更新任务: 任务 {task_id} 已更新调度配置")
+    logger.info(f"更新任务: 任务 {task_id} 已更新调度配置")
