@@ -3,6 +3,8 @@ import os
 
 from dotenv import load_dotenv
 
+from src.utils.logger import logger
+
 load_dotenv()
 
 SECRET_KEY_FILE = 'secret_key.txt'
@@ -51,30 +53,47 @@ VALID_BROWSER_CHANNELS = ["chrome", "msedge", "firefox"]
 
 # 处理部分配置
 try:
+    logger.info("开始加载配置...")
+
     MAX_CONCURRENT_TASKS = int(os.getenv("MAX_CONCURRENT_TASKS", "3"))
     SERVER_PORT = int(os.getenv("SERVER_PORT", "8000"))
+
+    logger.debug("配置参数: MAX_CONCURRENT_TASKS={}, SERVER_PORT={}", MAX_CONCURRENT_TASKS, SERVER_PORT)
+
     if BROWSER_CHANNEL not in VALID_BROWSER_CHANNELS:
-        print(f"警告：无效的 BROWSER_CHANNEL '{BROWSER_CHANNEL}'。将使用默认值 'chrome'。")
+        logger.warning("无效的 BROWSER_CHANNEL '{}'。将使用默认值 'chrome'。", BROWSER_CHANNEL)
         BROWSER_CHANNEL = 'chrome'
+    else:
+        logger.debug("浏览器通道设置为: {}", BROWSER_CHANNEL)
 
     if RUNNING_IN_DOCKER:
-        print(f"提示：部署在DOCKER中，将强制使用无头模式和chrome。")
+        logger.info("部署在DOCKER中，将强制使用无头模式和chrome。")
         BROWSER_CHANNEL = 'chrome'
         BROWSER_HEADLESS = True
+        logger.debug("Docker模式: BROWSER_CHANNEL={}, BROWSER_HEADLESS={}", BROWSER_CHANNEL, BROWSER_HEADLESS)
 
-    if OPENAI_EXTRA_BODY:
-        OPENAI_EXTRA_BODY = json.loads(OPENAI_EXTRA_BODY)
-except ValueError as e:
-    print("ERROR:", e)
+    if all([OPENAI_BASE_URL, OPENAI_MODEL_NAME]):
+        if OPENAI_EXTRA_BODY:
+            try:
+                OPENAI_EXTRA_BODY = json.loads(OPENAI_EXTRA_BODY)
+                logger.debug("已解析 OPENAI_EXTRA_BODY 配置")
+            except json.JSONDecodeError as e:
+                logger.error("OPENAI_EXTRA_BODY JSON解析失败: {}", e)
+                OPENAI_EXTRA_BODY = None
+        logger.info("AI配置已加载: BASE_URL={}, MODEL={}", OPENAI_BASE_URL, OPENAI_MODEL_NAME)
+    else:
+        logger.warning("未在 .env 文件中完整设置 OPENAI_BASE_URL 和 OPENAI_MODEL_NAME。AI相关功能可能无法使用。")
+        SKIP_AI_ANALYSIS = True
 
-if not all([OPENAI_BASE_URL, OPENAI_MODEL_NAME]):
-    print("警告：未在 .env 文件中完整设置 OPENAI_BASE_URL 和 OPENAI_MODEL_NAME。AI相关功能可能无法使用。")
-    SKIP_AI_ANALYSIS = True
-else:
-    SKIP_AI_ANALYSIS = False
+    logger.info("配置加载完成")
+
+except Exception as e:
+    logger.error("配置加载过程中发生错误: {}", e)
 
 
 def get_envs():
+    """获取环境变量配置"""
+    logger.debug("获取环境变量配置")
     return {
         "OPENAI_BASE_URL": OPENAI_BASE_URL,
         "OPENAI_API_KEY": OPENAI_API_KEY,
@@ -85,6 +104,10 @@ def get_envs():
 
 
 def set_envs(updates: dict, env_file=".env"):
+    """设置环境变量并更新.env文件"""
+    logger.info("开始更新环境变量配置")
+    logger.debug("更新内容: {}", updates)
+
     for key, value in updates.items():
         os.environ[key] = '' if value is None else str(value)
 
