@@ -200,6 +200,7 @@ class GoofishSpider:
             detail_response = await detail_info.value
             if detail_response.ok:
                 seller_info = pares_seller_detail_info(await detail_response.json(), seller_info)
+        await random_sleep(5, 10)
         await page.close()
         return seller_info
 
@@ -240,21 +241,21 @@ class GoofishSpider:
                     raise ValidationError('反爬虫验证弹窗')
 
                 try:
-                    await page.click("div[class*='closeIconBg']", timeout=3000)
+                    await page.click("div[class*='closeIconBg']", delay=random.uniform(10, 20), timeout=3000)
                     logger.info("已关闭广告弹窗。")
                 except TimeoutError:
                     logger.debug("未检测到广告弹窗。")
 
                 logger.info("步骤 2 - 应用筛选条件...")
 
-                await page.click('text=新发布')
+                await page.hover('text=新发布')
                 await random_sleep(0.5, 2)
 
-                await page.click('text=最新')
+                await page.click('text=最新', delay=random.uniform(10, 20))
                 await random_sleep(3, 5)
 
                 if personal_only:
-                    await page.click('text=个人闲置')
+                    await page.click('text=个人闲置', delay=random.uniform(10, 20))
                     await random_sleep(2, 4)
                     logger.debug("已筛选个人闲置商品")
 
@@ -290,7 +291,7 @@ class GoofishSpider:
                 for page_num in range(1, max_pages + 1):
                     try:
                         logger.info("正在处理第 {}/{} 页", page_num, max_pages)
-                        await page_btn[page_num - 1].click()
+                        await page_btn[page_num - 1].click(delay=random.uniform(10, 20))
                         await random_sleep(10, 20)
                         product_list = await page.locator('a[class*="feeds-item-wrap"]').all()
                         await self.process_product_list(product_list)
