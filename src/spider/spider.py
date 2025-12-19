@@ -223,7 +223,7 @@ class GoofishSpider:
             )
             self.browser_context = await self.browser.new_context(
                 storage_state=STATE_FILE if has_state_file else None,
-                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"
             )
 
             page = await self.browser_context.new_page()
