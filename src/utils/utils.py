@@ -2,7 +2,7 @@ import asyncio
 import random
 import re
 
-from typing import Optional
+from typing import Optional, Dict, Any, List
 
 from src.utils.logger import logger
 
@@ -36,7 +36,7 @@ def clean_price(price_str: str) -> float:
         return 0.0
 
 
-def dict_pick(src: dict, keys: list, default=None, strict=False) -> dict:
+def dict_pick(src: Dict[str, Any], keys: List[str], default=None, strict=False) -> dict:
     """
     从字典中复制指定键对应的值。
 

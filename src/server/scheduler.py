@@ -9,7 +9,7 @@ from apscheduler.jobstores.base import JobLookupError
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
-from src.config import MAX_CONCURRENT_TASKS
+from src.env import MAX_CONCURRENT_TASKS
 from src.server.trigger import RandomOffsetTrigger
 from src.task.task import get_all_tasks, Task
 from src.utils.logger import logger

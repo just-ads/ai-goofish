@@ -1,19 +1,20 @@
-from src.config import NTFY_TOPIC_URL, GOTIFY_URL, GOTIFY_TOKEN
 from src.notify.gotify import GotifyNotifier
 from src.notify.ntfy import NtfyNotifier
+from src.types import TaskResult, NotificationProvider
 
 
 class NotificationManager:
-    def __init__(self):
+    def __init__(self, providers: NotificationProvider):
         self.notifiers = []
+        if providers:
+            for provider in providers:
+                notif_type = provider.get('type')
+                if notif_type == 'ntfy':
+                    self.notifiers.append(NtfyNotifier(provider))
+                if notif_type == 'gotify':
+                    self.notifiers.append(GotifyNotifier(provider))
 
-        if NTFY_TOPIC_URL:
-            self.notifiers.append(NtfyNotifier(NTFY_TOPIC_URL))
-
-        if GOTIFY_URL and GOTIFY_TOKEN:
-            self.notifiers.append(GotifyNotifier(GOTIFY_URL, GOTIFY_TOKEN))
-
-    def notify(self, task_result: dict):
+    def notify(self, task_result: TaskResult):
         analysis = task_result.get('分析结果', {})
         if analysis.get('推荐度', 0) < 60:
             return

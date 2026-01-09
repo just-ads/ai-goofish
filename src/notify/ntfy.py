@@ -1,5 +1,6 @@
 import requests
 
+from src.types import NtfyConfig
 from src.utils.logger import logger
 
 
@@ -15,8 +16,8 @@ def score_tags(score: int):
 
 
 class NtfyNotifier:
-    def __init__(self, topic_url: str):
-        self.topic_url = topic_url.rstrip('/')
+    def __init__(self, config: NtfyConfig):
+        self.topic_url = config.get('url', '').rstrip('/')
 
     def send(self, task_result: dict):
         logger.info("推送 [Ntfy] 通知，地址为：{}", self.topic_url)

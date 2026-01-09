@@ -1,12 +1,13 @@
 import requests
 
+from src.types import GotifyConfig
 from src.utils.logger import logger
 
 
 class GotifyNotifier:
-    def __init__(self, server_url: str, token: str):
-        self.server_url = server_url.rstrip('/')
-        self.token = token
+    def __init__(self, config: GotifyConfig):
+        self.server_url = config.get('url', '').rstrip('/')
+        self.token = config.get('token', '')
 
     def send(self, task_result: dict):
         try:

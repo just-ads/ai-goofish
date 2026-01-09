@@ -5,34 +5,26 @@ import os
 import secrets
 from datetime import datetime, timedelta
 from json import JSONDecodeError
-from typing import Optional
 
 import uvicorn
 from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
-from pydantic import BaseModel
 from starlette.responses import FileResponse
 from starlette.staticfiles import StaticFiles
 
-from src.agent.client import AiClient
-from src.config import WEB_USERNAME, WEB_PASSWORD, SERVER_PORT, STATE_FILE, SECRET_KEY_FILE, get_envs, set_envs
-from src.server.scheduler import initialize_task_scheduler, shutdown_task_scheduler, add_task_to_scheduler, update_scheduled_task, run_task, remove_task_from_scheduler, \
+from src.agent.client import AgentClient
+from src.model.models import AgentConfig
+from src.config import set_global_config, AppConfig, get_config_instance
+from src.api.agent_api import router as agent_router
+from src.env import SECRET_KEY_FILE, WEB_USERNAME, STATE_FILE, SERVER_PORT, WEB_PASSWORD
+from src.server.scheduler import initialize_task_scheduler, shutdown_task_scheduler, add_task_to_scheduler, \
+    update_scheduled_task, run_task, remove_task_from_scheduler, \
     is_task_running, get_all_running_tasks, stop_task
 from src.task.result import get_task_result, remove_task_result, get_product_history_info
-from src.task.task import get_all_tasks, add_task, update_task, get_task, remove_task, TaskUpdate, TaskWithoutID
-
-
-class GoofishState(BaseModel):
-    content: str
-
-
-class PaginationOptions(BaseModel):
-    page: Optional[int] = 1
-    limit: Optional[int] = 20
-    recommended_only: Optional[bool] = False
-    sort_by: Optional[str] = "publish_time"
-    order: Optional[str] = "asce"
+from src.task.task import get_all_tasks, add_task, update_task, get_task, remove_task
+from src.types import Task, PaginationOptions, GoofishState, AppConfigModel, AgentConfigDict
+from src.model.models import AgentPresetTemplate
 
 
 async def lifespan(app: FastAPI):
@@ -59,6 +51,9 @@ def load_or_create_secret_key():
 app = FastAPI(title="闲鱼智能监控机器人", lifespan=lifespan)
 app.mount('/static', StaticFiles(directory='resources/static'), name='static')
 
+# 注册API路由
+app.include_router(agent_router)
+
 WEB_PASSWORD_MD5 = hashlib.md5(WEB_PASSWORD.encode('utf-8')).hexdigest()
 SECRET_KEY = load_or_create_secret_key()
 ALGORITHM = "HS256"
@@ -83,7 +78,7 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
 async def verify_token(token: str = Depends(oauth2_scheme)):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
+        username = payload.get("sub")
         if username != WEB_USERNAME:
             raise HTTPException(status_code=401, detail="无效的 Token")
     except JWTError:
@@ -110,14 +105,15 @@ async def api_get_tasks():
     try:
         tasks = await get_all_tasks()
         for task in tasks:
-            task['running'] = is_task_running(task.get('task_id'))
+            task_dict = dict(task)  # 转换为普通字典以支持动态字段
+            task_dict['running'] = is_task_running(task.get('task_id'))
         return success_response("任务获取成功", tasks)
     except Exception:
         raise HTTPException(status_code=500, detail="读取任务配置时发生错误")
 
 
 @app.post("/api/tasks/create", response_model=dict, dependencies=[Depends(verify_token)])
-async def api_create_task(req: TaskWithoutID):
+async def api_create_task(req: Task):
     try:
         task = await add_task(req)
         if task.get('enabled'):
@@ -128,9 +124,10 @@ async def api_create_task(req: TaskWithoutID):
 
 
 @app.post("/api/tasks/update", response_model=dict, dependencies=[Depends(verify_token)])
-async def api_update_task(req: TaskUpdate):
+async def api_update_task(req: Task):
     try:
-        old_task = await get_task(req.task_id)
+        task_id = req['task_id']
+        old_task = await get_task(task_id)
         new_task = await update_task(req)
 
         if new_task.get('enabled'):
@@ -142,7 +139,7 @@ async def api_update_task(req: TaskUpdate):
                 await update_scheduled_task(new_task)
         else:
             # 如果任务被禁用，从调度器中移除
-            remove_task_from_scheduler(req.task_id)
+            remove_task_from_scheduler(task_id)
 
         return success_response("任务更新成功", new_task)
     except Exception as e:
@@ -210,7 +207,14 @@ async def api_get_task_results(task_id: int, data: PaginationOptions):
         task = await get_task(task_id)
         if not task:
             raise HTTPException(status_code=404, detail="任务未找到")
-        result = await get_task_result(task['keyword'], data.page, data.limit, data.recommended_only, data.sort_by, data.order)
+        result = await get_task_result(
+            keyword=task['keyword'],
+            page=data.page,
+            limit=data.limit,
+            recommended_only=data.recommended_only,
+            sort_by=data.sort_by,
+            order=data.order
+        )
         return success_response("结果获取成功", result)
     except Exception:
         raise HTTPException(status_code=500, detail="结果获取失败")
@@ -273,38 +277,81 @@ async def api_get_goofish_status():
 
 @app.get('/api/system', response_model=dict, dependencies=[Depends(verify_token)])
 async def api_get_system():
-    return success_response('获取成功', get_envs())
+    return success_response('获取成功', get_config_instance().get_config())
 
 
 @app.post('/api/system', response_model=dict, dependencies=[Depends(verify_token)])
-async def api_save_system(envs: dict):
+async def api_save_system(config: AppConfigModel):
     try:
-        set_envs(envs)
-        return success_response('保存成功', get_envs())
+        validation_errors = AppConfig.validate_config(config)
+        if validation_errors:
+            error_messages = []
+            for section, errors in validation_errors.items():
+                for error in errors:
+                    error_messages.append(f"{section}: {error}")
+            raise HTTPException(
+                status_code=400,
+                detail=f"配置验证失败: {'; '.join(error_messages)}"
+            )
+
+        success = set_global_config(config)
+        if not success:
+            raise HTTPException(status_code=500, detail="配置保存失败")
+
+        updated_config = get_config_instance().get_config()
+        return success_response('配置保存成功', updated_config)
+
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"保存失败: {e}")
+        from src.utils.logger import logger
+        logger.error(f"保存系统配置时发生错误: {e}")
+        raise HTTPException(status_code=500, detail=f"保存配置时发生未知错误: {str(e)}")
 
 
 @app.post('/api/system/aitest', response_model=dict, dependencies=[Depends(verify_token)])
-async def api_aitest(config: dict):
+async def api_aitest(config: AgentConfigDict):
     try:
-        extra_body = config.get('OPENAI_EXTRA_BODY')
-        client = AiClient(
-            base_url=config.get('OPENAI_BASE_URL'),
-            api_key=config.get('OPENAI_API_KEY'),
-            model_name=config.get('OPENAI_MODEL_NAME'),
-            proxy=config.get('OPENAI_PROXY_URL'),
-            extra_body=json.loads(extra_body) if extra_body else None
+        agent_config = AgentConfig(
+            id=config.get('id', 'test'),
+            name=config.get('name', 'test'),
+            endpoint=config.get('endpoint', ''),
+            api_key=config.get('api_key', ''),
+            model=config.get('model', ''),
+            proxy=config.get('proxy', ''),
+            headers=config.get('headers', {"Authorization": "Bearer {key}", "Content-Type": "application/json"}),
+            body=config.get('body', {"model": "{model}", "messages": "{messages}"})
         )
-        messages = await client.ask(
-            [{"role": "user", "content": "Hello."}],
-            'text'
-        )
+        client = AgentClient(agent_config)
+        messages = client.ask(messages=[{"role": "user", "content": "Hello."}])
         return success_response('测试成功', f'{messages}')
     except JSONDecodeError:
         raise HTTPException(status_code=500, detail=f"OPENAI_EXTRA_BODY: 无效JSON字符串")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"测试失败: {e}")
+
+
+@app.get('/api/system/agent-templates', response_model=dict, dependencies=[Depends(verify_token)])
+async def api_get_agent_templates():
+    """获取agent预设模板列表"""
+    try:
+        templates = AgentPresetTemplate.get_preset_templates()
+        template_list = [
+            {
+                "id": template.id,
+                "name": template.name,
+                "description": template.description,
+                "endpoint": template.endpoint,
+                "api_key": template.api_key,
+                "model": template.model,
+                "headers": template.headers,
+                "body": template.body
+            }
+            for template in templates
+        ]
+        return success_response('获取成功', template_list)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"获取模板失败: {e}")
 
 
 # ----------------- 路由 -----------------

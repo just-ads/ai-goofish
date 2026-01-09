@@ -5,19 +5,24 @@ import os
 import random
 import sys
 from datetime import datetime
+from typing import Literal, Optional
 from urllib.parse import urlencode
 
 from playwright.async_api import async_playwright, Page, TimeoutError, Locator
 
-from src.agent.client import ai_client
+from src.agent.client import AgentClient
+from src.model.models import AgentConfig
 from src.agent.product_evaluator import ProductEvaluator
-from src.config import STATE_FILE, BROWSER_HEADLESS, DETAIL_API_URL_PATTERN, SKIP_AI_ANALYSIS, BROWSER_CHANNEL
+from src.config import get_config_instance
+from src.env import STATE_FILE, RUNNING_IN_DOCKER
 from src.notify.notify_manger import NotificationManager
 from src.spider.parsers import pares_product_info_and_seller_info, pares_seller_detail_info
 from src.task.result import save_task_result, get_result_filename, get_product_history_info
-from src.task.task import Task
+from src.types import Seller, Task, TaskResult
 from src.utils.logger import logger
 from src.utils.utils import random_sleep, safe_get, extract_id_from_url_regex
+
+DETAIL_API_URL_PATTERN = 'h5api.m.goofish.com/h5/mtop.taobao.idle.pc.detail'
 
 
 class ValidationError(Exception):
@@ -30,14 +35,27 @@ class ValidationError(Exception):
 
 
 class GoofishSpider:
-    def __init__(self, task: Task, notification_manager: NotificationManager):
+    def __init__(
+            self,
+            task: Task,
+            notification_manager: Optional['NotificationManager'] = None,
+            product_evaluator: Optional['ProductEvaluator'] = None,
+            state_file: Optional[str] = None,
+            browser_headless: bool = False,
+            browser_channel: Literal['chrome', 'msedge', 'firefox'] = 'chrome',
+    ):
         self.task = task
         self.output_filename = None
         self.processed_ids = set()
         self.notification_manager = notification_manager
+        self.product_evaluator = product_evaluator
+        self.history_prices = None
+
+        self.state_file = state_file
+        self.browser_headless = browser_headless
+        self.browser_channel = browser_channel
         self.browser = None
         self.browser_context = None
-        self.history_prices = None
         self.crawl_time = datetime.now().strftime("%Y-%m-%d %H:%M")
         self._init_output_filename()
 
@@ -121,7 +139,8 @@ class GoofishSpider:
             real_url = await item.get_attribute('href')
             logger.debug("真实点击链接: {}", real_url)
 
-            async with detail_page.expect_response(lambda r: DETAIL_API_URL_PATTERN in r.url, timeout=25000) as detail_info:
+            async with detail_page.expect_response(lambda r: DETAIL_API_URL_PATTERN in r.url,
+                                                   timeout=25000) as detail_info:
                 await detail_page.goto(real_url, wait_until="domcontentloaded", timeout=25000)
                 try:
                     detail_response = await detail_info.value
@@ -160,43 +179,44 @@ class GoofishSpider:
 
         seller_info = await self.process_seller(seller_base_info)
 
-        keyword = self.task.get('keyword')
+        keyword = self.task.get('keyword', '')
 
-        final_record = {
+        final_record: TaskResult = {
             "爬取时间": self.crawl_time,
             "搜索关键字": keyword,
             "任务名称": self.task.get('task_name', 'Untitled Task'),
             "商品信息": product_info,
             "卖家信息": seller_info
         }
-
-        if (not SKIP_AI_ANALYSIS) and ai_client:
+        if self.product_evaluator:
             logger.info("开始AI分析")
             try:
-                product_evaluator = ProductEvaluator(
-                    ai_client,
-                    product_info,
-                    seller_info,
-                    self.history_prices,
-                    {"description": self.task.get('description')}
+                analysis_results = await self.product_evaluator.evaluate(
+                    product=product_info,
+                    seller=seller_info,
+                    history_prices=self.history_prices,
+                    target_product={"description": self.task.get('description')}
                 )
-                analysis_results = await product_evaluator.evaluate()
                 final_record['分析结果'] = analysis_results
             except Exception as e:
                 logger.error("AI分析出错: {}", e)
+        else:
+            logger.warning("AI分析为启用或未配置")
 
         logger.info("开始写入数据")
         save_task_result(keyword, final_record)
         logger.info("开始推送通知")
         self.notification_manager.notify(final_record)
 
-    async def process_seller(self, seller_info: dict):
+    async def process_seller(self, seller_info: Seller):
         """处理卖家信息"""
         seller_id = seller_info['卖家ID']
         logger.info("开始采集用户ID: {} 的完整信息...", seller_id)
         page = await self.browser_context.new_page()
-        async with page.expect_response(lambda r: "mtop.idle.web.user.page.head" in r.url, timeout=25000) as detail_info:
-            await page.goto(f"https://www.goofish.com/personal?userId={seller_id}", wait_until="domcontentloaded", timeout=20000)
+        async with page.expect_response(lambda r: "mtop.idle.web.user.page.head" in r.url,
+                                        timeout=25000) as detail_info:
+            await page.goto(f"https://www.goofish.com/personal?userId={seller_id}", wait_until="domcontentloaded",
+                            timeout=20000)
             detail_response = await detail_info.value
             if detail_response.ok:
                 seller_info = pares_seller_detail_info(await detail_response.json(), seller_info)
@@ -212,17 +232,15 @@ class GoofishSpider:
         min_price = self.task.get('min_price')
         max_price = self.task.get('max_price')
 
-        has_state_file = os.path.exists(STATE_FILE)
-
         last_processed_count = await self.get_history()
 
         async with async_playwright() as p:
             self.browser = await p.chromium.launch(
-                headless=BROWSER_HEADLESS,
-                channel=BROWSER_CHANNEL
+                headless=self.browser_headless,
+                channel=self.browser_channel
             )
             self.browser_context = await self.browser.new_context(
-                storage_state=STATE_FILE if has_state_file else None,
+                storage_state=self.state_file,
                 user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"
             )
 
@@ -263,11 +281,11 @@ class GoofishSpider:
                     price_container = page.locator('div[class*="search-price-input-container"]').first
                     if await price_container.is_visible():
                         if min_price:
-                            await price_container.get_by_placeholder("¥").first.fill(min_price)
+                            await price_container.get_by_placeholder("¥").first.fill(str(min_price))
                             await random_sleep(1, 2.5)
                             logger.debug("设置最低价格: {}", min_price)
                         if max_price:
-                            await price_container.get_by_placeholder("¥").nth(1).fill(max_price)
+                            await price_container.get_by_placeholder("¥").nth(1).fill(str(max_price))
                             await random_sleep(1, 2.5)
                             logger.debug("设置最高价格: {}", max_price)
 
@@ -332,11 +350,12 @@ async def main(debug: bool = False):
 
     if args.debug or debug:
         os.environ["DEBUG"] = "1"
+        logger.debug_mode = True
         logger.info("DEBUG模式已启用")
 
     if not os.path.exists(STATE_FILE):
-        logger.error("登录状态文件 '{}' 不存在。请先运行 login.py 生成。", STATE_FILE)
-        sys.exit(f"错误: 登录状态文件 '{STATE_FILE}' 不存在。请先运行 login.py 生成。")
+        logger.warning("登录状态文件 '{}' 不存在。请先上传。", STATE_FILE)
+        # sys.exit(f"错误: 登录状态文件 '{STATE_FILE}' 不存在。请先上传")
 
     if not os.path.exists(args.tasks):
         logger.error("任务文件 '{}' 不存在。", args.tasks)
@@ -371,11 +390,43 @@ async def main(debug: bool = False):
         logger.info("没有需要执行的任务，程序退出。")
         return
 
-    notification_manager = NotificationManager()
+    config = get_config_instance()
+
+    notification_manager = None
+    if config.is_notifications_enabled:
+        notification_manager = NotificationManager(config.notification_providers)
+
+    product_evaluator = None
+
+    if config.is_evaluator_enabled:
+        text_agent_id = config.evaluator_text_agent
+        text_agent_config = config.get_agent(text_agent_id)
+        imag_agent_id = config.evaluator_image_agent
+        imag_agent_config = config.get_agent(imag_agent_id)
+
+        text_ai_client = AgentClient(AgentConfig(**text_agent_config)) if text_agent_config else None
+        image_ai_client = None
+        if imag_agent_id == text_agent_id:
+            image_ai_client = text_ai_client
+        elif imag_agent_config:
+            image_ai_client = AgentClient(AgentConfig(**imag_agent_config))
+        if text_ai_client:
+            product_evaluator = ProductEvaluator(
+                text_ai_client,
+                image_ai_client
+            )
+
     coroutines = []
     for task in active_tasks:
         logger.info("任务 '{}' 已加入执行队列。", task['task_name'])
-        spider = GoofishSpider(task, notification_manager)
+        spider = GoofishSpider(
+            task=task,
+            notification_manager=notification_manager,
+            product_evaluator=product_evaluator,
+            state_file=STATE_FILE,
+            browser_headless=True if RUNNING_IN_DOCKER else config.browser_headless,
+            browser_channel=config.browser_channel
+        )
         coroutines.append(spider.run())
 
     results = await asyncio.gather(*coroutines, return_exceptions=True)
