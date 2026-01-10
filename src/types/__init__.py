@@ -17,7 +17,7 @@ __all__ = [
     'Product', 'Seller', 'ProductPriceData', 'Analysis',
 
     # Agent types
-    'AgentConfigDict', 'AgentConfigDict',
+    'AgentConfigDict',
 
     # Task types
     'Task', 'TaskResult', 'TaskResultHistory', 'TaskResultPagination',

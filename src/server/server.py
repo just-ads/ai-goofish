@@ -14,9 +14,8 @@ from starlette.responses import FileResponse
 from starlette.staticfiles import StaticFiles
 
 from src.agent.client import AgentClient
-from src.model.models import AgentConfig
+from src.agent.agent import AgentConfig
 from src.config import set_global_config, AppConfig, get_config_instance
-from src.api.agent_api import router as agent_router
 from src.env import SECRET_KEY_FILE, WEB_USERNAME, STATE_FILE, SERVER_PORT, WEB_PASSWORD
 from src.server.scheduler import initialize_task_scheduler, shutdown_task_scheduler, add_task_to_scheduler, \
     update_scheduled_task, run_task, remove_task_from_scheduler, \
@@ -24,7 +23,7 @@ from src.server.scheduler import initialize_task_scheduler, shutdown_task_schedu
 from src.task.result import get_task_result, remove_task_result, get_product_history_info
 from src.task.task import get_all_tasks, add_task, update_task, get_task, remove_task
 from src.types import Task, PaginationOptions, GoofishState, AppConfigModel, AgentConfigDict
-from src.model.models import AgentPresetTemplate
+from src.agent.agent import AgentPresetTemplate
 
 
 async def lifespan(app: FastAPI):
@@ -50,9 +49,6 @@ def load_or_create_secret_key():
 
 app = FastAPI(title="闲鱼智能监控机器人", lifespan=lifespan)
 app.mount('/static', StaticFiles(directory='resources/static'), name='static')
-
-# 注册API路由
-app.include_router(agent_router)
 
 WEB_PASSWORD_MD5 = hashlib.md5(WEB_PASSWORD.encode('utf-8')).hexdigest()
 SECRET_KEY = load_or_create_secret_key()

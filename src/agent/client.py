@@ -8,7 +8,7 @@ import time
 import httpx
 from typing import List, Dict, Any, Optional, Union
 
-from src.model.models import AgentConfig, AgentMessage, AgentResponse
+from src.agent.agent import AgentConfig, AgentMessage, AgentResponse
 from src.utils.logger import logger
 
 

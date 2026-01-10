@@ -2,7 +2,6 @@ import json
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 
-from src.services.ai_service import get_ai_service
 from src.types import Product, Seller, ProductPriceData, Analysis
 from src.utils.logger import logger
 from src.utils.utils import dict_pick
@@ -13,16 +12,17 @@ class ProductEvaluator:
     商品评估器：按步骤调用 AI
     """
 
-    def __init__(self):
+    def __init__(self, text_ai_client, image_ai_client):
         self.history: List[Dict[str, Any]] = []
-        self.ai_service = get_ai_service()
+        self.text_ai_client = text_ai_client
+        self.image_ai_client = image_ai_client
         logger.debug("ProductEvaluator 初始化完成")
 
     async def _ask_ai(self, prompt: str, system_msg: Optional[str] = None) -> Dict[str, Any]:
-        ai_client = self.ai_service.get_text_client()
+        ai_client = self.text_ai_client.get_text_client()
         if ai_client is None:
             raise RuntimeError("无法获取AI客户端，请检查Agent配置")
-        
+
         system_content = system_msg or (
             "你是商品建议度评估助手。输出必须是 JSON，不要有多余文本\n"
             "每个响应应包含字段：'analysis'(文字解释), 'suggestion'(0-100 的建议度), 'reason'(50-150个字的中文简短原因)"

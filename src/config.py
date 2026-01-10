@@ -219,22 +219,6 @@ class AppConfig:
             if "channel" in browser and browser["channel"] not in ["chrome", "firefox", "webkit"]:
                 errors.setdefault("browser", []).append("channel 必须是 chrome, firefox, webkit 之一")
 
-        # 验证 Agent 配置
-        if "agents" in config:
-            agents = config["agents"]
-            if not isinstance(agents, list):
-                errors.setdefault("agents", []).append("agents 必须是数组")
-            else:
-                for i, agent in enumerate(agents):
-                    if not isinstance(agent, dict):
-                        errors.setdefault("agents", []).append(f"Agent[{i}] 必须是对象")
-                        continue
-
-                    if "id" not in agent:
-                        errors.setdefault("agents", []).append(f"Agent[{i}] 缺少 id 字段")
-                    if "endpoint" not in agent:
-                        errors.setdefault("agents", []).append(f"Agent[{i}] 缺少 endpoint 字段")
-
         # 验证通知配置
         if "notifications" in config:
             notifications = config["notifications"]

@@ -11,7 +11,7 @@ from urllib.parse import urlencode
 from playwright.async_api import async_playwright, Page, TimeoutError, Locator
 
 from src.agent.client import AgentClient
-from src.model.models import AgentConfig
+from src.agent.agent import AgentConfig
 from src.agent.product_evaluator import ProductEvaluator
 from src.config import get_config_instance
 from src.env import STATE_FILE, RUNNING_IN_DOCKER
