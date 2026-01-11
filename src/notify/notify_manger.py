@@ -1,6 +1,6 @@
 from src.notify.gotify import GotifyNotifier
 from src.notify.ntfy import NtfyNotifier
-from src.types import TaskResult, NotificationProvider
+from src.types_module import TaskResult, NotificationProvider
 
 
 class NotificationManager:

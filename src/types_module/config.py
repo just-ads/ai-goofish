@@ -3,7 +3,7 @@ config 类型定义模块
 """
 from typing import TypedDict, Optional, Literal
 
-from src.types.notify import NotificationProvider
+from src.types_module.notify import NotificationProvider
 
 
 class BrowserConfig(TypedDict, total=False):

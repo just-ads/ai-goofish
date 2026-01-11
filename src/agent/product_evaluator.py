@@ -2,7 +2,7 @@ import json
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 
-from src.types import Product, Seller, ProductPriceData, Analysis
+from src.types_module import Product, Seller, ProductPriceData, Analysis
 from src.utils.logger import logger
 from src.utils.utils import dict_pick
 
@@ -12,10 +12,9 @@ class ProductEvaluator:
     商品评估器：按步骤调用 AI
     """
 
-    def __init__(self, text_ai_client, image_ai_client):
+    def __init__(self, text_ai_client):
         self.history: List[Dict[str, Any]] = []
         self.text_ai_client = text_ai_client
-        self.image_ai_client = image_ai_client
         logger.debug("ProductEvaluator 初始化完成")
 
     async def _ask_ai(self, prompt: str, system_msg: Optional[str] = None) -> Dict[str, Any]:

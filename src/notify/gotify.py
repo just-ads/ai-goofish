@@ -1,6 +1,6 @@
 import requests
 
-from src.types import GotifyConfig
+from src.types_module import GotifyConfig
 from src.utils.logger import logger
 
 

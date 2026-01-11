@@ -4,7 +4,7 @@
 from enum import Enum
 from typing import TypedDict, Optional, List, Set
 
-from src.types.product import Product, Seller, Analysis
+from src.types_module.product import Product, Seller, Analysis
 
 
 class Task(TypedDict, total=False):
@@ -16,8 +16,8 @@ class Task(TypedDict, total=False):
     enabled: bool
     cron: str
     description: str
-    min_price: Optional[float]
-    max_price: Optional[float]
+    min_price: Optional[str]
+    max_price: Optional[str]
     personal_only: Optional[bool]
     running: Optional[bool]
 

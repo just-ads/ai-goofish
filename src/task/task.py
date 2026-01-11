@@ -3,7 +3,7 @@ from typing import Optional, List
 
 from src.env import TASKS_FILE
 from src.task.result import remove_task_result
-from src.types import Task
+from src.types_module import Task
 from src.utils.file_operator import FileOperator
 
 
@@ -23,7 +23,7 @@ async def add_task(task: Task) -> Task:
 
     await task_file_op.write(json.dumps(data, ensure_ascii=False, indent=2))
 
-    return task_dict  # type: ignore[return-value]
+    return task
 
 
 async def update_task(task_update: Task) -> Task:

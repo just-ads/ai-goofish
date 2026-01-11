@@ -1,8 +1,7 @@
 """
 Agent 相关类型定义
 """
-from typing import TypedDict, Dict, Any, Optional, List
-from datetime import datetime
+from typing import TypedDict, Dict, Any, Optional
 
 
 class AgentConfigDict(TypedDict):

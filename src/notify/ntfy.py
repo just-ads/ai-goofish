@@ -1,6 +1,6 @@
 import requests
 
-from src.types import NtfyConfig
+from src.types_module import NtfyConfig
 from src.utils.logger import logger
 
 

@@ -11,14 +11,14 @@ from urllib.parse import urlencode
 from playwright.async_api import async_playwright, Page, TimeoutError, Locator
 
 from src.agent.client import AgentClient
-from src.agent.agent import AgentConfig
+from src.agent.config import get_agent_config
 from src.agent.product_evaluator import ProductEvaluator
 from src.config import get_config_instance
 from src.env import STATE_FILE, RUNNING_IN_DOCKER
 from src.notify.notify_manger import NotificationManager
 from src.spider.parsers import pares_product_info_and_seller_info, pares_seller_detail_info
 from src.task.result import save_task_result, get_result_filename, get_product_history_info
-from src.types import Seller, Task, TaskResult
+from src.types_module import Seller, Task, TaskResult
 from src.utils.logger import logger
 from src.utils.utils import random_sleep, safe_get, extract_id_from_url_regex
 
@@ -281,11 +281,11 @@ class GoofishSpider:
                     price_container = page.locator('div[class*="search-price-input-container"]').first
                     if await price_container.is_visible():
                         if min_price:
-                            await price_container.get_by_placeholder("¥").first.fill(str(min_price))
+                            await price_container.get_by_placeholder("¥").first.fill(min_price)
                             await random_sleep(1, 2.5)
                             logger.debug("设置最低价格: {}", min_price)
                         if max_price:
-                            await price_container.get_by_placeholder("¥").nth(1).fill(str(max_price))
+                            await price_container.get_by_placeholder("¥").nth(1).fill(max_price)
                             await random_sleep(1, 2.5)
                             logger.debug("设置最高价格: {}", max_price)
 
@@ -400,20 +400,12 @@ async def main(debug: bool = False):
 
     if config.is_evaluator_enabled:
         text_agent_id = config.evaluator_text_agent
-        text_agent_config = config.get_agent(text_agent_id)
-        imag_agent_id = config.evaluator_image_agent
-        imag_agent_config = config.get_agent(imag_agent_id)
+        text_agent_config = await get_agent_config(text_agent_id)
 
-        text_ai_client = AgentClient(AgentConfig(**text_agent_config)) if text_agent_config else None
-        image_ai_client = None
-        if imag_agent_id == text_agent_id:
-            image_ai_client = text_ai_client
-        elif imag_agent_config:
-            image_ai_client = AgentClient(AgentConfig(**imag_agent_config))
+        text_ai_client = AgentClient(text_agent_config) if text_agent_config else None
         if text_ai_client:
             product_evaluator = ProductEvaluator(
-                text_ai_client,
-                image_ai_client
+                text_ai_client=text_ai_client
             )
 
     coroutines = []

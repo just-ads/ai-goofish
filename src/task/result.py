@@ -5,7 +5,7 @@ from typing import Literal, Optional
 
 import aiofiles
 
-from src.types import TaskResultSortBy, TaskResultHistory, TaskResultPagination, TaskResult
+from src.types_module import TaskResultSortBy, TaskResultHistory, TaskResultPagination, TaskResult
 from src.utils.utils import clean_price
 
 output_dir = "jsonl"

@@ -4,9 +4,9 @@
 
 import json
 import os
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, List
 
-from src.types import AppConfigModel
+from src.types_module import AppConfigModel
 from src.utils.logger import logger
 
 
