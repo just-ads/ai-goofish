@@ -6,7 +6,6 @@
 from .config import *
 from .task import *
 from .server import *
-from .agent import *
 from .notify import *
 
 __all__ = [
@@ -15,9 +14,6 @@ __all__ = [
 
     # Product types
     'Product', 'Seller', 'ProductPriceData', 'Analysis',
-
-    # Agent types
-    'AgentConfigDict',
 
     # Task types
     'Task', 'TaskResult', 'TaskResultHistory', 'TaskResultPagination',

@@ -2,7 +2,8 @@
 Agent相关路由模块
 处理Agent配置的增删改查、测试、对话等功能
 """
-from typing import List, Optional
+from typing import List
+from typing import Optional, Dict, Any
 
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
@@ -15,10 +16,57 @@ from src.agent.config import (
     remove_agent_config
 )
 from src.api.auth import verify_token, success_response
-from src.types_module import AgentConfigDict
+
+
+class AgentCreateRequest(BaseModel):
+    """Agent创建请求模型"""
+    id: str
+    name: str
+    endpoint: str
+    api_key: str
+    model: str
+    proxy: str = ""
+    headers: Dict[str, str] = {"Authorization": "Bearer {key}", "Content-Type": "application/json"}
+    body: Dict[str, Any] = {"model": "{model}", "messages": "{messages}"}
+
+
+class AgentUpdateRequest(BaseModel):
+    """Agent更新请求模型"""
+    id: Optional[str] = None
+    name: Optional[str] = None
+    endpoint: Optional[str] = None
+    api_key: Optional[str] = None
+    model: Optional[str] = None
+    proxy: Optional[str] = None
+    headers: Optional[Dict[str, str]] = None
+    body: Optional[Dict[str, Any]] = None
 
 # 创建路由器
 router = APIRouter(prefix="/agents", tags=["agents"])
+
+
+# --------------- Agent模板接口 ----------------
+@router.get("/templates", dependencies=[Depends(verify_token)])
+async def api_get_agent_templates():
+    """获取Agent预设模板列表"""
+    try:
+        templates = AgentPresetTemplate.get_preset_templates()
+        template_list = [
+            {
+                "id": template.id,
+                "name": template.name,
+                "description": template.description,
+                "endpoint": template.endpoint,
+                "api_key": template.api_key,
+                "model": template.model,
+                "headers": template.headers,
+                "body": template.body
+            }
+            for template in templates
+        ]
+        return success_response('获取成功', template_list)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"获取模板失败: {str(e)}")
 
 
 # --------------- Agent配置管理接口 ----------------
@@ -62,35 +110,35 @@ async def api_get_agent(agent_id: str):
         raise HTTPException(status_code=500, detail=f"获取Agent配置失败: {str(e)}")
 
 
-@router.post("/", dependencies=[Depends(verify_token)])
-async def api_create_agent(config: AgentConfigDict):
+@router.post("", dependencies=[Depends(verify_token)])
+async def api_create_agent(config: AgentCreateRequest):
     """创建Agent配置"""
     try:
         # 检查agent_id是否已存在
-        existing_agent = await get_agent_config(config.get('id', ''))
+        existing_agent = await get_agent_config(config.id)
         if existing_agent:
-            raise HTTPException(status_code=400, detail=f"Agent ID '{config.get('id')}' 已存在")
+            raise HTTPException(status_code=400, detail=f"Agent ID '{config.id}' 已存在")
 
         # 提供默认值
-        headers = config.get('headers')
+        headers = config.headers
         if headers is None:
             headers = {"Authorization": "Bearer {key}", "Content-Type": "application/json"}
 
-        body = config.get('body')
+        body = config.body
         if body is None:
             body = {"model": "{model}", "messages": "{messages}"}
 
-        proxy = config.get('proxy')
+        proxy = config.proxy
         if proxy is None:
             proxy = ""
 
         # 创建Agent配置
         agent_config = AgentConfig(
-            id=config.get('id', ''),
-            name=config.get('name', ''),
-            endpoint=config.get('endpoint', ''),
-            api_key=config.get('api_key', ''),
-            model=config.get('model', ''),
+            id=config.id,
+            name=config.name,
+            endpoint=config.endpoint,
+            api_key=config.api_key,
+            model=config.model,
             proxy=proxy,
             headers=headers,
             body=body
@@ -113,8 +161,8 @@ async def api_create_agent(config: AgentConfigDict):
         raise HTTPException(status_code=500, detail=f"创建Agent配置失败: {str(e)}")
 
 
-@router.put("/{agent_id}", dependencies=[Depends(verify_token)])
-async def api_update_agent(agent_id: str, config: AgentConfigDict):
+@router.post("/{agent_id}", dependencies=[Depends(verify_token)])
+async def api_update_agent(agent_id: str, config: AgentUpdateRequest):
     """更新Agent配置"""
     try:
         # 检查agent是否存在
@@ -123,29 +171,29 @@ async def api_update_agent(agent_id: str, config: AgentConfigDict):
             raise HTTPException(status_code=404, detail=f"Agent '{agent_id}' 未找到")
 
         # 确保agent_id一致
-        if config.get('id') and config['id'] != agent_id:
+        if config.id and config.id != agent_id:
             raise HTTPException(status_code=400, detail="Agent ID 不能修改")
 
         # 提供默认值
-        headers = config.get('headers')
+        headers = config.headers
         if headers is None:
             headers = existing_agent.headers
 
-        body = config.get('body')
+        body = config.body
         if body is None:
             body = existing_agent.body
 
-        proxy = config.get('proxy')
+        proxy = config.proxy
         if proxy is None:
             proxy = existing_agent.proxy
 
         # 创建更新后的Agent配置
         updated_config = AgentConfig(
             id=agent_id,
-            name=config.get('name', existing_agent.name),
-            endpoint=config.get('endpoint', existing_agent.endpoint),
-            api_key=config.get('api_key', existing_agent.api_key),
-            model=config.get('model', existing_agent.model),
+            name=config.name if config.name is not None else existing_agent.name,
+            endpoint=config.endpoint if config.endpoint is not None else existing_agent.endpoint,
+            api_key=config.api_key if config.api_key is not None else existing_agent.api_key,
+            model=config.model if config.model is not None else existing_agent.model,
             proxy=proxy,
             headers=headers,
             body=body
@@ -245,27 +293,3 @@ async def api_chat_with_agent(agent_id: str, request: ChatRequest):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"与Agent对话失败: {str(e)}")
-
-
-# --------------- Agent模板接口 ----------------
-@router.get("/templates", dependencies=[Depends(verify_token)])
-async def api_get_agent_templates():
-    """获取Agent预设模板列表"""
-    try:
-        templates = AgentPresetTemplate.get_preset_templates()
-        template_list = [
-            {
-                "id": template.id,
-                "name": template.name,
-                "description": template.description,
-                "endpoint": template.endpoint,
-                "api_key": template.api_key,
-                "model": template.model,
-                "headers": template.headers,
-                "body": template.body
-            }
-            for template in templates
-        ]
-        return success_response('获取成功', template_list)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"获取模板失败: {str(e)}")
