@@ -42,7 +42,7 @@ class AgentConfig(BaseModel):
     endpoint: str = Field(..., description="API端点URL")
     api_key: str = Field(..., description="API密钥")
     model: str = Field(..., description="模型名称")
-    proxy: str = Field(..., description="代理地址")
+    proxy: str = Field(None, description="代理地址")
 
     headers: Dict[str, str] = Field(
         {"Authorization": "Bearer {key}", "Content-Type": "application/json"},

@@ -13,7 +13,7 @@ from src.utils.logger import logger
 class AppConfig:
     """应用配置类"""
 
-    def __init__(self, config_file: str = "config.json"):
+    def __init__(self, config_file: str = "app.config"):
         """
         初始化配置
 
@@ -171,8 +171,6 @@ class AppConfig:
     @property
     def browser_channel(self):
         return self.get('browser.channel', 'chrome')
-
-
 
     def update_config(self, updates: AppConfigModel) -> bool:
         """

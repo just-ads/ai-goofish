@@ -2,9 +2,10 @@ import json
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 
+from src.agent.client import AgentClient
 from src.types_module import Product, Seller, ProductPriceData, Analysis
 from src.utils.logger import logger
-from src.utils.utils import dict_pick
+from src.utils.utils import dict_pick, fix_me
 
 
 class ProductEvaluator:
@@ -12,13 +13,13 @@ class ProductEvaluator:
     商品评估器：按步骤调用 AI
     """
 
-    def __init__(self, text_ai_client):
+    def __init__(self, text_ai_client: AgentClient):
         self.history: List[Dict[str, Any]] = []
         self.text_ai_client = text_ai_client
         logger.debug("ProductEvaluator 初始化完成")
 
     async def _ask_ai(self, prompt: str, system_msg: Optional[str] = None) -> Dict[str, Any]:
-        ai_client = self.text_ai_client.get_text_client()
+        ai_client = self.text_ai_client
         if ai_client is None:
             raise RuntimeError("无法获取AI客户端，请检查Agent配置")
 
@@ -43,7 +44,7 @@ class ProductEvaluator:
             if not response.content:
                 raise ValueError("AI返回空内容")
 
-            parsed = json.loads(response.content)
+            parsed = json.loads(fix_me(response.content))
             if not isinstance(parsed, dict):
                 logger.warning(f"AI返回非JSON对象: {response.content[:100]}...")
                 raise ValueError(f"AI返回非JSON对象: {response.content[:100]}...")

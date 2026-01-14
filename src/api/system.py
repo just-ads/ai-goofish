@@ -3,10 +3,7 @@
 处理系统配置、AI测试等功能
 """
 
-from typing import Optional, Dict, Any
-
 from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel
 
 from src.api.auth import verify_token, success_response
 from src.config import set_global_config, AppConfig, get_config_instance
@@ -14,19 +11,6 @@ from src.types_module import AppConfigModel
 
 # 创建路由器
 router = APIRouter(prefix="/system", tags=["system"])
-
-
-class AgentTestRequest(BaseModel):
-    """Agent测试请求模型"""
-    id: str = "test"
-    name: str = "test"
-    endpoint: str
-    api_key: str
-    model: str
-    proxy: Optional[str] = ""
-    headers: Optional[Dict[str, str]] = None
-    body: Optional[Dict[str, Any]] = None
-
 
 # --------------- 系统相关接口 ----------------
 @router.get("", dependencies=[Depends(verify_token)])

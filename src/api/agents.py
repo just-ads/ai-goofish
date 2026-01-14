@@ -3,7 +3,7 @@ Agent相关路由模块
 处理Agent配置的增删改查、测试、对话等功能
 """
 from typing import List
-from typing import Optional, Dict, Any
+from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
@@ -13,33 +13,9 @@ from src.agent.client import AgentClient
 from src.agent.config import (
     get_agent_config, get_all_agents,
     add_agent_config, update_agent_config,
-    remove_agent_config
+    remove_agent_config, AgentCreateModel, AgentUpdateModel
 )
 from src.api.auth import verify_token, success_response
-
-
-class AgentCreateRequest(BaseModel):
-    """Agent创建请求模型"""
-    id: str
-    name: str
-    endpoint: str
-    api_key: str
-    model: str
-    proxy: str = ""
-    headers: Dict[str, str] = {"Authorization": "Bearer {key}", "Content-Type": "application/json"}
-    body: Dict[str, Any] = {"model": "{model}", "messages": "{messages}"}
-
-
-class AgentUpdateRequest(BaseModel):
-    """Agent更新请求模型"""
-    id: Optional[str] = None
-    name: Optional[str] = None
-    endpoint: Optional[str] = None
-    api_key: Optional[str] = None
-    model: Optional[str] = None
-    proxy: Optional[str] = None
-    headers: Optional[Dict[str, str]] = None
-    body: Optional[Dict[str, Any]] = None
 
 # 创建路由器
 router = APIRouter(prefix="/agents", tags=["agents"])
@@ -111,46 +87,15 @@ async def api_get_agent(agent_id: str):
 
 
 @router.post("", dependencies=[Depends(verify_token)])
-async def api_create_agent(config: AgentCreateRequest):
+async def api_create_agent(config: AgentCreateModel):
     """创建Agent配置"""
     try:
-        # 检查agent_id是否已存在
-        existing_agent = await get_agent_config(config.id)
-        if existing_agent:
-            raise HTTPException(status_code=400, detail=f"Agent ID '{config.id}' 已存在")
-
-        # 提供默认值
-        headers = config.headers
-        if headers is None:
-            headers = {"Authorization": "Bearer {key}", "Content-Type": "application/json"}
-
-        body = config.body
-        if body is None:
-            body = {"model": "{model}", "messages": "{messages}"}
-
-        proxy = config.proxy
-        if proxy is None:
-            proxy = ""
-
-        # 创建Agent配置
-        agent_config = AgentConfig(
-            id=config.id,
-            name=config.name,
-            endpoint=config.endpoint,
-            api_key=config.api_key,
-            model=config.model,
-            proxy=proxy,
-            headers=headers,
-            body=body
-        )
-
-        # 保存配置
-        result = await add_agent_config(agent_config)
+        result = await add_agent_config(config)
         if not result:
             raise HTTPException(status_code=500, detail="保存Agent配置失败")
 
         # 返回创建的结果（隐藏敏感信息）
-        result = agent_config.model_dump()
+        result = result.model_dump()
         if 'api_key' in result and result['api_key']:
             result['api_key'] = '***' + result['api_key'][-4:] if len(result['api_key']) > 4 else '***'
 
@@ -161,51 +106,32 @@ async def api_create_agent(config: AgentCreateRequest):
         raise HTTPException(status_code=500, detail=f"创建Agent配置失败: {str(e)}")
 
 
+@router.post("/test", dependencies=[Depends(verify_token)])
+async def api_agent_test(config: AgentCreateModel):
+    try:
+        client = AgentClient(AgentConfig(**config.model_dump(), id='test'))
+        messages = await client.ask(messages=[{"role": "user", "content": "Hello."}])
+        return success_response('测试成功', {
+            "agent_name": config.name,
+            "response": f'{messages.content}'
+        })
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"测试Agent失败: {str(e)}")
+
+
 @router.post("/{agent_id}", dependencies=[Depends(verify_token)])
-async def api_update_agent(agent_id: str, config: AgentUpdateRequest):
+async def api_update_agent(agent_id: str, config: AgentUpdateModel):
     """更新Agent配置"""
     try:
-        # 检查agent是否存在
-        existing_agent = await get_agent_config(agent_id)
-        if not existing_agent:
-            raise HTTPException(status_code=404, detail=f"Agent '{agent_id}' 未找到")
-
-        # 确保agent_id一致
-        if config.id and config.id != agent_id:
-            raise HTTPException(status_code=400, detail="Agent ID 不能修改")
-
-        # 提供默认值
-        headers = config.headers
-        if headers is None:
-            headers = existing_agent.headers
-
-        body = config.body
-        if body is None:
-            body = existing_agent.body
-
-        proxy = config.proxy
-        if proxy is None:
-            proxy = existing_agent.proxy
-
-        # 创建更新后的Agent配置
-        updated_config = AgentConfig(
-            id=agent_id,
-            name=config.name if config.name is not None else existing_agent.name,
-            endpoint=config.endpoint if config.endpoint is not None else existing_agent.endpoint,
-            api_key=config.api_key if config.api_key is not None else existing_agent.api_key,
-            model=config.model if config.model is not None else existing_agent.model,
-            proxy=proxy,
-            headers=headers,
-            body=body
-        )
 
         # 更新配置
-        success = await update_agent_config(agent_id, updated_config)
-        if not success:
+        agent = await update_agent_config(agent_id, config)
+        if not agent:
             raise HTTPException(status_code=500, detail="更新Agent配置失败")
 
-        # 返回更新结果（隐藏敏感信息）
-        result = updated_config.model_dump()
+        result = agent.model_dump()
         if 'api_key' in result and result['api_key']:
             result['api_key'] = '***' + result['api_key'][-4:] if len(result['api_key']) > 4 else '***'
 
@@ -249,12 +175,12 @@ async def api_test_agent(agent_id: str):
 
         # 测试连接
         client = AgentClient(agent_config)
-        messages = client.ask(messages=[{"role": "user", "content": "Hello."}])
+        messages = await client.ask(messages=[{"role": "user", "content": "Hello."}])
 
         return success_response('测试成功', {
             "agent_id": agent_id,
             "agent_name": agent_config.name,
-            "response": f'{messages}'
+            "response": f'{messages.content}'
         })
     except HTTPException:
         raise

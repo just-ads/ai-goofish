@@ -89,3 +89,13 @@ def extract_id_from_url_regex(url: str) -> Optional[str]:
     except Exception as e:
         print(f"从URL提取id时发生错误: {url}, 错误: {e}")
         return None
+
+
+def fix_me(text: str) -> str:
+    start = text.find('{')
+    end = text.rfind('}')
+
+    if start == -1 or end == -1 or start > end:
+        return text
+
+    return text[start:end + 1]
