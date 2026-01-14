@@ -6,7 +6,7 @@ import json
 import os
 from typing import Dict, Any, List
 
-from src.types_module import AppConfigModel
+from src.types_module import AppConfigModel, NotifierIds
 from src.utils.logger import logger
 
 
@@ -149,8 +149,14 @@ class AppConfig:
         return self.get('notification.enabled', True)
 
     @property
-    def notification_providers(self) -> List[Any]:
-        return self.get('notification.providers', [])
+    def notification_providers(self) -> NotifierIds:
+        """
+        获取启用的Notifier ID列表
+
+        Returns:
+            Notifier ID列表
+        """
+        return self.get('notifications.providers', [])
 
     @property
     def is_evaluator_enabled(self) -> bool:

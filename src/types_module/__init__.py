@@ -19,7 +19,7 @@ __all__ = [
     'Task', 'TaskResult', 'TaskResultHistory', 'TaskResultPagination',
 
     # Notify types
-    'NtfyConfig', 'GotifyConfig', 'NotificationProvider',
+    'NtfyConfig', 'GotifyConfig', 'NotificationProvider', 'NotificationProviders',
 
     # Server types
     'PaginationOptions', 'GoofishState',

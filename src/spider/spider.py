@@ -18,6 +18,7 @@ from src.env import STATE_FILE, RUNNING_IN_DOCKER
 from src.notify.notify_manger import NotificationManager
 from src.spider.parsers import pares_product_info_and_seller_info, pares_seller_detail_info
 from src.task.result import save_task_result, get_result_filename, get_product_history_info
+from src.task.task import get_all_tasks
 from src.types_module import Seller, Task, TaskResult
 from src.utils.logger import logger
 from src.utils.utils import random_sleep, safe_get, extract_id_from_url_regex
@@ -343,7 +344,6 @@ async def main(debug: bool = False):
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
     parser.add_argument("--debug", type=bool, default=False, help="调试模式：每个任务仅处理每页前 2 个新商品")
-    parser.add_argument("--tasks", type=str, default="tasks.json", help="指定任务配置文件路径（默认为 tasks.json）")
     parser.add_argument("--task-id", type=int, default=None, help="运行指定id的单个任务 (用于定时任务调度)")
 
     args = parser.parse_args()
@@ -354,30 +354,17 @@ async def main(debug: bool = False):
         logger.info("DEBUG模式已启用")
 
     if not os.path.exists(STATE_FILE):
-        logger.warning("登录状态文件 '{}' 不存在。请先上传。", STATE_FILE)
-        # sys.exit(f"错误: 登录状态文件 '{STATE_FILE}' 不存在。请先上传")
+        logger.warning("登录状态文件 '{}' 不存在", STATE_FILE)
 
-    if not os.path.exists(args.tasks):
-        logger.error("任务文件 '{}' 不存在。", args.tasks)
-        sys.exit(f"错误: 任务文件 '{args.tasks}' 不存在。")
-
-    tasks = []
-
-    try:
-        with open(args.tasks, 'r', encoding='utf-8') as f:
-            tasks = json.load(f)
-        logger.debug("成功加载任务配置文件: {}", args.tasks)
-    except (json.JSONDecodeError, IOError) as e:
-        logger.error("读取或解析配置文件 '{}' 失败: {}", args.tasks, e)
-        sys.exit(f"错误: 读取或解析配置文件 '{args.tasks}' 失败: {e}")
+    tasks = await get_all_tasks()
 
     active_tasks = []
 
     if args.task_id is not None:
         task = next((it for it in tasks if it['task_id'] == args.task_id), None)
         if not task:
-            logger.error("在配置文件中未找到id为 '{}' 的任务。", args.task_id)
-            sys.exit(f"错误: 任务 '{args.task_id}' 不存在。")
+            logger.error(f"未找到id为 '{args.task_id}' 的任务")
+            sys.exit(f"错误: 任务 '{args.task_id}' 不存在")
 
         active_tasks.append(task)
         logger.info("将执行单个任务: {} (ID: {})", task['task_name'], args.task_id)
