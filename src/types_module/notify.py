@@ -18,8 +18,4 @@ class GotifyConfig(TypedDict):
 
 NotificationProvider = NtfyConfig | GotifyConfig
 
-# 用于向后兼容，保留旧类型
 NotificationProviders = List[NtfyConfig | GotifyConfig]
-
-# 新的：NotificationConfig 中只存储启用的 notifier ID
-NotifierIds = List[str]

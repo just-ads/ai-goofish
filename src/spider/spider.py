@@ -1,6 +1,5 @@
 import argparse
 import asyncio
-import json
 import os
 import random
 import sys
@@ -381,7 +380,11 @@ async def main(debug: bool = False):
 
     notification_manager = None
     if config.is_notifications_enabled:
-        notification_manager = NotificationManager(config.notification_providers)
+        notification_providers = [
+            NotificationManager.create_notifier(provider_config)
+            for provider_config in config.notification_providers
+        ]
+        notification_manager = NotificationManager(notification_providers)
 
     product_evaluator = None
 

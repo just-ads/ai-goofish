@@ -2,15 +2,14 @@
 Notifier配置管理
 """
 import json
-from typing import Optional, List
+from typing import Optional, List, Dict
 
-from src.notify.notifier import NotifierConfig, NotifierCreateModel, NotifierUpdateModel
 from src.utils.file_operator import FileOperator
 
 NOTIFIER_CONFIG_FILE = "notifier.config"
 
 
-async def get_notifier_config(notifier_id: str) -> Optional[NotifierConfig]:
+async def get_notifier_config(notifier_id: str) -> Optional[Dict]:
     """
     从notifier.config文件获取指定Notifier配置
 
@@ -35,7 +34,7 @@ async def get_notifier_config(notifier_id: str) -> Optional[NotifierConfig]:
             return None
 
         try:
-            return NotifierConfig(**notifier)
+            return notifier
         except Exception as e:
             raise ValueError(f"Notifier配置解析失败: {e}")
 
@@ -43,7 +42,7 @@ async def get_notifier_config(notifier_id: str) -> Optional[NotifierConfig]:
         raise ValueError(f"notifier.config文件JSON格式错误: {e}")
 
 
-async def get_all_notifiers() -> List[NotifierConfig]:
+async def get_all_notifiers() -> List[Dict]:
     """
     从notifier.config文件获取所有Notifier配置
 
@@ -57,26 +56,14 @@ async def get_all_notifiers() -> List[NotifierConfig]:
         return []
 
     try:
-        notifier_dicts = json.loads(data_str) if data_str else []
-        notifiers = []
-        for notifier_dict in notifier_dicts:
-            if not isinstance(notifier_dict, dict):
-                continue
-
-            try:
-                notifier = NotifierConfig(**notifier_dict)
-                notifiers.append(notifier)
-            except Exception as e:
-                # 跳过无效配置
-                continue
-
+        notifiers = json.loads(data_str) if data_str else []
         return notifiers
 
     except json.JSONDecodeError as e:
         raise ValueError(f"notifier.config文件JSON格式错误: {e}")
 
 
-async def add_notifier_config(notifier_config: NotifierCreateModel) -> NotifierConfig:
+async def add_notifier_config(notifier_config: Dict) -> Dict:
     """
     添加Notifier配置到notifier.config文件
 
@@ -101,17 +88,16 @@ async def add_notifier_config(notifier_config: NotifierCreateModel) -> NotifierC
 
     notifier_id = str(max_id + 1)
 
-    notifier_dict = notifier_config.model_dump()
-    notifier_dict['id'] = notifier_id
+    notifier_config['id'] = notifier_id
 
-    data.append(notifier_dict)
+    data.append(notifier_config)
 
     await notifier_file_op.write(json.dumps(data, ensure_ascii=False, indent=2))
 
-    return NotifierConfig(**notifier_dict)
+    return notifier_config
 
 
-async def update_notifier_config(notifier_id: str, notifier_update: NotifierUpdateModel) -> NotifierConfig:
+async def update_notifier_config(notifier_id: str, notifier_update: Dict) -> Dict:
     """
     更新notifier.config文件中的Notifier配置
 
@@ -135,16 +121,14 @@ async def update_notifier_config(notifier_id: str, notifier_update: NotifierUpda
 
     notifier = data[notifier_index]
 
-    # 更新字段（排除None值）
-    update_dict = notifier_update.model_dump(exclude_none=True)
-    notifier.update(update_dict)
+    notifier.update(notifier_update)
 
     await notifier_file_op.write(json.dumps(data, ensure_ascii=False, indent=2))
 
-    return NotifierConfig(**notifier)
+    return notifier
 
 
-async def remove_notifier_config(notifier_id: str) -> Optional[NotifierConfig]:
+async def remove_notifier_config(notifier_id: str) -> Optional[Dict]:
     """
     从notifier.config文件删除Notifier配置
 
@@ -169,6 +153,6 @@ async def remove_notifier_config(notifier_id: str) -> Optional[NotifierConfig]:
     await notifier_file_op.write(json.dumps(data, ensure_ascii=False, indent=2))
 
     try:
-        return NotifierConfig(**removed_notifier)
+        return removed_notifier
     except Exception:
         return None
