@@ -14,7 +14,7 @@ from src.notify.notify_manger import NotificationManager
 from src.notify.template import get_notifier_template
 
 # 创建路由器
-router = APIRouter(prefix="/notifiers", tags=["notifiers"])
+router = APIRouter(prefix="/notifier", tags=["notifier"])
 
 
 # --------------- Notifier模板接口 ----------------
@@ -23,18 +23,7 @@ async def api_get_notifier_templates():
     """获取Notifier预设模板列表"""
     try:
         templates = get_notifier_template()
-        template_list = [
-            {
-                "id": template.id,
-                "name": template.name,
-                "description": template.description,
-                "type": template.type,
-                "url": template.url,
-                "token": template.token
-            }
-            for template in templates
-        ]
-        return success_response('获取成功', template_list)
+        return success_response('获取成功', templates)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取模板失败: {str(e)}")
 
@@ -46,36 +35,12 @@ async def api_get_notifiers():
     try:
         notifiers = await get_all_notifiers()
         # 转换为字典列表
-        notifier_list = []
         for notifier in notifiers:
-            if notifier:
-                notifier_dict = notifier.model_dump()
-                # 隐藏敏感信息
-                if 'token' in notifier_dict and notifier_dict['token']:
-                    notifier_dict['token'] = '***' + notifier_dict['token'][-4:] if len(notifier_dict['token']) > 4 else '***'
-                notifier_list.append(notifier_dict)
+            # 隐藏敏感信息
+            if 'token' in notifier and notifier['token']:
+                notifier['token'] = '***' + notifier['token'][-4:] if len(notifier['token']) > 4 else '***'
 
-        return success_response("获取成功", notifier_list)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"获取Notifier配置失败: {str(e)}")
-
-
-@router.get("/{notifier_id}", dependencies=[Depends(verify_token)])
-async def api_get_notifier(notifier_id: str):
-    """获取单个Notifier配置"""
-    try:
-        notifier = await get_notifier_config(notifier_id)
-        if not notifier:
-            raise HTTPException(status_code=404, detail=f"Notifier '{notifier_id}' 未找到")
-
-        notifier_dict = notifier.model_dump()
-        # 隐藏敏感信息
-        if 'token' in notifier_dict and notifier_dict['token']:
-            notifier_dict['token'] = '***' + notifier_dict['token'][-4:] if len(notifier_dict['token']) > 4 else '***'
-
-        return success_response("获取成功", notifier_dict)
-    except HTTPException:
-        raise
+        return success_response("获取成功", notifiers)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取Notifier配置失败: {str(e)}")
 
@@ -88,8 +53,6 @@ async def api_create_notifier(config: dict):
         if not result:
             raise HTTPException(status_code=500, detail="保存Notifier配置失败")
 
-        # 返回创建的结果（隐藏敏感信息）
-        result = result.model_dump()
         if 'token' in result and result['token']:
             result['token'] = '***' + result['token'][-4:] if len(result['token']) > 4 else '***'
 
@@ -98,6 +61,24 @@ async def api_create_notifier(config: dict):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"创建Notifier配置失败: {str(e)}")
+
+
+@router.get("/{notifier_id}", dependencies=[Depends(verify_token)])
+async def api_get_notifier(notifier_id: str):
+    """获取单个Notifier配置"""
+    try:
+        notifier = await get_notifier_config(notifier_id)
+        if not notifier:
+            raise HTTPException(status_code=404, detail=f"Notifier '{notifier_id}' 未找到")
+
+        if 'token' in notifier and notifier['token']:
+            notifier['token'] = '***' + notifier['token'][-4:] if len(notifier['token']) > 4 else '***'
+
+        return success_response("获取成功", notifier)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"获取Notifier配置失败: {str(e)}")
 
 
 @router.post("/test", dependencies=[Depends(verify_token)])
@@ -125,11 +106,10 @@ async def api_update_notifier(notifier_id: str, config: dict):
         if not notifier:
             raise HTTPException(status_code=500, detail="更新Notifier配置失败")
 
-        result = notifier.model_dump()
-        if 'token' in result and result['token']:
-            result['token'] = '***' + result['token'][-4:] if len(result['token']) > 4 else '***'
+        if 'token' in notifier and notifier['token']:
+            notifier['token'] = '***' + notifier['token'][-4:] if len(notifier['token']) > 4 else '***'
 
-        return success_response("更新成功", result)
+        return success_response("更新成功", notifier)
     except HTTPException:
         raise
     except Exception as e:

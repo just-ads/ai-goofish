@@ -15,7 +15,8 @@ from src.agent.config import (
     add_agent_config, update_agent_config,
     remove_agent_config, AgentCreateModel, AgentUpdateModel
 )
-from src.api.auth import verify_token, success_response
+from src.api.auth import verify_token
+from src.api.utils import success_response
 
 # 创建路由器
 router = APIRouter(prefix="/agents", tags=["agents"])
@@ -66,26 +67,6 @@ async def api_get_agents():
         raise HTTPException(status_code=500, detail=f"获取Agent配置失败: {str(e)}")
 
 
-@router.get("/{agent_id}", dependencies=[Depends(verify_token)])
-async def api_get_agent(agent_id: str):
-    """获取单个Agent配置"""
-    try:
-        agent = await get_agent_config(agent_id)
-        if not agent:
-            raise HTTPException(status_code=404, detail=f"Agent '{agent_id}' 未找到")
-
-        agent_dict = agent.model_dump()
-        # 隐藏敏感信息
-        if 'api_key' in agent_dict and agent_dict['api_key']:
-            agent_dict['api_key'] = '***' + agent_dict['api_key'][-4:] if len(agent_dict['api_key']) > 4 else '***'
-
-        return success_response("获取成功", agent_dict)
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"获取Agent配置失败: {str(e)}")
-
-
 @router.post("", dependencies=[Depends(verify_token)])
 async def api_create_agent(config: AgentCreateModel):
     """创建Agent配置"""
@@ -104,6 +85,26 @@ async def api_create_agent(config: AgentCreateModel):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"创建Agent配置失败: {str(e)}")
+
+
+@router.get("/{agent_id}", dependencies=[Depends(verify_token)])
+async def api_get_agent(agent_id: str):
+    """获取单个Agent配置"""
+    try:
+        agent = await get_agent_config(agent_id)
+        if not agent:
+            raise HTTPException(status_code=404, detail=f"Agent '{agent_id}' 未找到")
+
+        agent_dict = agent.model_dump()
+        # 隐藏敏感信息
+        if 'api_key' in agent_dict and agent_dict['api_key']:
+            agent_dict['api_key'] = '***' + agent_dict['api_key'][-4:] if len(agent_dict['api_key']) > 4 else '***'
+
+        return success_response("获取成功", agent_dict)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"获取Agent配置失败: {str(e)}")
 
 
 @router.post("/test", dependencies=[Depends(verify_token)])

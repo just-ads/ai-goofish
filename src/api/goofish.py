@@ -6,7 +6,8 @@ import json
 import os
 from fastapi import APIRouter, HTTPException, Depends
 
-from src.api.auth import verify_token, success_response
+from src.api.auth import verify_token
+from src.api.utils import success_response
 from src.types_module import GoofishState
 from src.env import STATE_FILE
 

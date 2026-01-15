@@ -5,7 +5,8 @@
 
 from fastapi import APIRouter, HTTPException, Depends
 
-from src.api.auth import verify_token, success_response
+from src.api.auth import verify_token
+from src.api.utils import success_response
 from src.config import set_global_config, AppConfig, get_config_instance
 from src.types_module import AppConfigModel
 
