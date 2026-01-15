@@ -7,17 +7,15 @@
     "model": "gpt-4",
     "proxy": null,
     "headers": {
-      "Authorization": "Bearer {{api_key}}",
+      "Authorization": "Bearer {key}",
       "Content-Type": "application/json"
     },
     "body": {
-      "model": "{{model}}",
-      "messages": "{{messages}}",
+      "model": "{model}",
+      "messages": "{messages}",
       "temperature": 0.2,
       "max_tokens": 2000
-    },
-    "created_at": "2024-01-01T00:00:00Z",
-    "updated_at": "2024-01-01T00:00:00Z"
+    }
   },
   {
     "id": "claude-3-sonnet",
@@ -27,18 +25,16 @@
     "model": "claude-3-sonnet-20240229",
     "proxy": null,
     "headers": {
-      "x-api-key": "{{api_key}}",
+      "x-api-key": "{key}",
       "Content-Type": "application/json",
       "anthropic-version": "2023-06-01"
     },
     "body": {
-      "model": "{{model}}",
+      "model": "{model}",
       "max_tokens": 2000,
-      "messages": "{{messages}}"
+      "messages": "{messages}"
     },
     "enabled": false,
-    "is_default": false,
-    "created_at": "2024-01-01T00:00:00Z",
-    "updated_at": "2024-01-01T00:00:00Z"
+    "is_default": false
   }
 ]

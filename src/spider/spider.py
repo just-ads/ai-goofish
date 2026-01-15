@@ -4,13 +4,13 @@ import os
 import random
 import sys
 from datetime import datetime
-from typing import Literal, Optional
+from typing import Any, Literal, Optional
 from urllib.parse import urlencode
 
 from playwright.async_api import async_playwright, Page, TimeoutError, Locator
 
-from src.agent.config import get_agent_config
-from src.agent.product_evaluator import ProductEvaluator
+from src.model_provider.config import get_provider_config
+from src.agent.registry import create_agent
 from src.config import get_config_instance
 from src.env import STATE_FILE, RUNNING_IN_DOCKER
 from src.notify.notify_manger import NotificationManager
@@ -38,7 +38,7 @@ class GoofishSpider:
             self,
             task: Task,
             notification_manager: Optional['NotificationManager'] = None,
-            product_evaluator: Optional['ProductEvaluator'] = None,
+            product_evaluator: Optional[Any] = None,
             state_file: Optional[str] = None,
             browser_headless: bool = False,
             browser_channel: Literal['chrome', 'msedge', 'firefox'] = 'chrome',
@@ -384,9 +384,9 @@ async def main(debug: bool = False):
     product_evaluator = None
 
     if config.is_evaluator_enabled:
-        text_agent_config = await get_agent_config(config.evaluator_text_agent)
-        if text_agent_config:
-            product_evaluator = ProductEvaluator.create_from_config(text_agent_config)
+        text_provider_config = await get_provider_config(config.evaluator_text_provider)
+        if text_provider_config:
+            product_evaluator = create_agent("product_evaluator", text_provider_config=text_provider_config)
 
     coroutines = []
     for task in active_tasks:

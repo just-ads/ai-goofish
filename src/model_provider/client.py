@@ -1,5 +1,6 @@
-"""
-通用Agent客户端
+"""Generic model provider client.
+
+Sends requests to a configured provider endpoint (OpenAI-compatible, etc.).
 """
 
 import asyncio
@@ -8,19 +9,19 @@ import time
 import httpx
 from typing import List, Dict, Any, Optional, Union
 
-from src.agent.agent import AgentConfig, AgentMessage, AgentResponse
+from src.model_provider.models import ProviderConfig, ProviderMessage, ProviderResponse
 from src.utils.logger import logger
 
 
-class AgentClient:
-    """通用Agent客户端"""
+class ProviderClient:
+    """通用 Provider 客户端"""
 
-    def __init__(self, config: AgentConfig):
+    def __init__(self, config: ProviderConfig):
         """
-        初始化Agent客户端
+        初始化 Provider 客户端
 
         Args:
-            config: Agent配置
+            config: Provider 配置
         """
         self.config = config
         self._client: Optional[httpx.AsyncClient] = None
@@ -51,13 +52,13 @@ class AgentClient:
 
     async def ask(
             self,
-            messages: Union[List[AgentMessage], List[Dict[str, str]]],
+            messages: Union[List[ProviderMessage], List[Dict[str, str]]],
             parameters: Optional[Dict[str, Any]] = None,
             context: Optional[Dict[str, Any]] = None,
             max_retries: int = 3
-    ) -> AgentResponse:
+    ) -> ProviderResponse:
         """
-        向Agent发送请求
+        向 Provider 发送请求
 
         Args:
             messages: 消息列表
@@ -66,7 +67,7 @@ class AgentClient:
             max_retries: 最大重试次数
 
         Returns:
-            Agent响应
+            Provider 响应
         """
         # 转换消息格式
         formatted_messages = self._format_messages(messages)
@@ -91,13 +92,13 @@ class AgentClient:
 
                 if response.success:
                     logger.info(
-                        f"Agent请求成功: {self.config.name}, "
+                        f"Provider请求成功: {self.config.name}, "
                         f"尝试次数: {attempt + 1}, 延迟: {latency:.2f}s"
                     )
                     return response
                 else:
                     logger.warning(
-                        f"Agent请求失败: {self.config.name}, "
+                        f"Provider请求失败: {self.config.name}, "
                         f"错误: {response.error}, 尝试次数: {attempt + 1}"
                     )
 
@@ -109,7 +110,7 @@ class AgentClient:
 
             except Exception as e:
                 logger.error(
-                    f"Agent请求异常: {self.config.name}, "
+                    f"Provider请求异常: {self.config.name}, "
                     f"错误: {e}, 尝试次数: {attempt + 1}"
                 )
 
@@ -118,8 +119,8 @@ class AgentClient:
                     logger.info(f"等待 {wait_time} 秒后重试...")
                     await asyncio.sleep(wait_time)
 
-        return AgentResponse.error_response(
-            f"Agent请求失败，已达到最大重试次数: {max_retries}",
+        return ProviderResponse.error_response(
+            f"Provider请求失败，已达到最大重试次数: {max_retries}",
             self.config.id
         )
 
@@ -129,7 +130,7 @@ class AgentClient:
             parameters: Dict[str, Any],
             context: Optional[Dict[str, Any]],
             attempt: int
-    ) -> AgentResponse:
+    ) -> ProviderResponse:
         """
         发送HTTP请求
 
@@ -140,7 +141,7 @@ class AgentClient:
             attempt: 当前尝试次数
 
         Returns:
-            Agent响应
+            Provider 响应
         """
         await self._ensure_client()
         assert self._client is not None, "HTTP客户端未初始化"
@@ -158,7 +159,7 @@ class AgentClient:
 
             # 发送请求
             logger.debug(
-                f"发送Agent请求: {self.config.name}, "
+                f"发送Provider请求: {self.config.name}, "
                 f"URL: {request_url}, 尝试: {attempt}"
             )
 
@@ -173,13 +174,13 @@ class AgentClient:
             return self._parse_response(response)
 
         except httpx.TimeoutException:
-            return AgentResponse.error_response("请求超时", self.config.id)
+            return ProviderResponse.error_response("请求超时", self.config.id)
         except httpx.RequestError as e:
-            return AgentResponse.error_response(f"网络请求错误: {e}", self.config.id)
+            return ProviderResponse.error_response(f"网络请求错误: {e}", self.config.id)
         except Exception as e:
-            return AgentResponse.error_response(f"请求处理错误: {e}", self.config.id)
+            return ProviderResponse.error_response(f"请求处理错误: {e}", self.config.id)
 
-    def _parse_response(self, response: httpx.Response) -> AgentResponse:
+    def _parse_response(self, response: httpx.Response) -> ProviderResponse:
         """
         解析HTTP响应
 
@@ -187,12 +188,12 @@ class AgentClient:
             response: HTTP响应
 
         Returns:
-            Agent响应
+            Provider 响应
         """
         try:
             response_data = response.json()
         except json.JSONDecodeError:
-            return AgentResponse.error_response(
+            return ProviderResponse.error_response(
                 f"响应JSON解析失败: {response.text[:200]}",
                 self.config.id
             )
@@ -200,7 +201,7 @@ class AgentClient:
         # 检查HTTP状态码
         if response.status_code != 200:
             error_msg = self._extract_error_message(response_data, response.text)
-            return AgentResponse.error_response(
+            return ProviderResponse.error_response(
                 f"HTTP {response.status_code}: {error_msg}",
                 self.config.id
             )
@@ -209,14 +210,14 @@ class AgentClient:
         content = self._extract_content(response_data)
 
         if content is None:
-            return AgentResponse.error_response(
+            return ProviderResponse.error_response(
                 f"无法从响应中提取内容: {response_data}",
                 self.config.id
             )
 
-        return AgentResponse.success_response(
+        return ProviderResponse.success_response(
             content=content,
-            agent_id=self.config.id,
+            provider_id=self.config.id,
             raw_response=response_data
         )
 
@@ -275,7 +276,7 @@ class AgentClient:
 
         return None
 
-    def _format_messages(self, messages: Union[List[AgentMessage], List[Dict[str, str]]]) -> List[Dict[str, str]]:
+    def _format_messages(self, messages: Union[List[ProviderMessage], List[Dict[str, str]]]) -> List[Dict[str, str]]:
         """
         格式化消息列表
 
@@ -288,7 +289,7 @@ class AgentClient:
         formatted_messages = []
 
         for msg in messages:
-            if isinstance(msg, AgentMessage):
+            if isinstance(msg, ProviderMessage):
                 message_dict = msg.model_dump(exclude_none=True)
                 formatted_messages.append(message_dict)
             elif isinstance(msg, dict):
@@ -296,8 +297,8 @@ class AgentClient:
                 if 'role' not in msg or 'content' not in msg:
                     raise ValueError(f"消息字典必须包含role和content字段: {msg}")
 
-                # 创建AgentMessage进行验证
-                agent_msg = AgentMessage(**msg)
+                # 创建ProviderMessage进行验证
+                agent_msg = ProviderMessage(**msg)
                 formatted_messages.append(agent_msg.model_dump(exclude_none=True))
             else:
                 raise ValueError(f"不支持的消息类型: {type(msg)}")
@@ -306,13 +307,13 @@ class AgentClient:
 
     async def test_connection(self) -> bool:
         """
-        测试Agent连接
+        测试 Provider 连接
 
         Returns:
             连接是否成功
         """
         try:
-            test_message = AgentMessage(
+            test_message = ProviderMessage(
                 role="user",
                 content="Hello, please respond with 'OK' if you can hear me."
             )
@@ -323,12 +324,12 @@ class AgentClient:
             )
 
             if response.success:
-                logger.info(f"Agent连接测试成功: {self.config.name}")
+                logger.info(f"Provider连接测试成功: {self.config.name}")
                 return True
             else:
-                logger.warning(f"Agent连接测试失败: {self.config.name}, 错误: {response.error}")
+                logger.warning(f"Provider连接测试失败: {self.config.name}, 错误: {response.error}")
                 return False
 
         except Exception as e:
-            logger.error(f"Agent连接测试异常: {self.config.name}, 错误: {e}")
+            logger.error(f"Provider连接测试异常: {self.config.name}, 错误: {e}")
             return False

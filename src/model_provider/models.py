@@ -1,5 +1,8 @@
 """
-Agent配置模型
+Model provider models.
+
+These types describe a model/API provider configuration (endpoint, model name,
+credentials, request templates, etc.).
 """
 
 import json
@@ -9,7 +12,7 @@ from typing import Dict, List, Optional, Any
 from pydantic import BaseModel, Field, validator
 
 
-class AgentMessage(BaseModel):
+class ProviderMessage(BaseModel):
     """AI消息模型"""
     role: str = Field(..., description="消息角色：system/user/assistant")
     content: str = Field(..., description="消息内容")
@@ -23,11 +26,11 @@ class AgentMessage(BaseModel):
         return v
 
 
-class AgentConfig(BaseModel):
+class ProviderConfig(BaseModel):
     """
-    Agent配置模型
+    Provider 配置模型
 
-    一个Agent由以下部分组成：
+    一个 Provider 由以下部分组成：
     - id: 唯一标识符
     - name: 名称（用于显示）
     - endpoint: API端点URL
@@ -37,12 +40,12 @@ class AgentConfig(BaseModel):
     - headers: 请求头配置
     - body: 请求体配置
     """
-    id: str = Field(..., description="Agent唯一ID")
-    name: str = Field(..., description="Agent名称")
+    id: str = Field(..., description="Provider唯一ID")
+    name: str = Field(..., description="Provider名称")
     endpoint: str = Field(..., description="API端点URL")
     api_key: str = Field(..., description="API密钥")
     model: str = Field(..., description="模型名称")
-    proxy: str = Field(None, description="代理地址")
+    proxy: Optional[str] = Field(None, description="代理地址")
 
     headers: Dict[str, str] = Field(
         {"Authorization": "Bearer {key}", "Content-Type": "application/json"},
@@ -148,12 +151,12 @@ class AgentConfig(BaseModel):
             return data
 
 
-class AgentResponse(BaseModel):
-    """Agent响应模型"""
+class ProviderResponse(BaseModel):
+    """Provider 响应模型"""
     success: bool = Field(..., description="请求是否成功")
     content: Optional[str] = Field(None, description="响应内容")
     error: Optional[str] = Field(None, description="错误信息")
-    agent_id: Optional[str] = Field(None, description="使用的Agent ID")
+    provider_id: Optional[str] = Field(None, description="使用的Provider ID")
     raw_response: Optional[Dict[str, Any]] = Field(None, description="原始响应数据")
     latency: Optional[float] = Field(None, description="请求延迟（秒）")
 
@@ -161,15 +164,15 @@ class AgentResponse(BaseModel):
     def success_response(
             cls,
             content: str,
-            agent_id: str,
+            provider_id: str,
             raw_response: Optional[Dict[str, Any]] = None,
             latency: Optional[float] = None
-    ) -> "AgentResponse":
+    ) -> "ProviderResponse":
         """创建成功响应"""
         return cls(
             success=True,
             content=content,
-            agent_id=agent_id,
+            provider_id=provider_id,
             raw_response=raw_response,
             latency=latency,
             error=None
@@ -179,21 +182,21 @@ class AgentResponse(BaseModel):
     def error_response(
             cls,
             error: str,
-            agent_id: Optional[str] = None
-    ) -> "AgentResponse":
+            provider_id: Optional[str] = None
+    ) -> "ProviderResponse":
         """创建错误响应"""
         return cls(
             success=False,
             error=error,
-            agent_id=agent_id,
+            provider_id=provider_id,
             content=None,
             raw_response=None,
             latency=None
         )
 
 
-class AgentPresetTemplate(BaseModel):
-    """Agent预设模板"""
+class ProviderPresetTemplate(BaseModel):
+    """Provider 预设模板"""
     id: str = Field(..., description="模板ID")
     name: str = Field(..., description="模板名称")
     description: str = Field(..., description="模板描述")
@@ -204,7 +207,7 @@ class AgentPresetTemplate(BaseModel):
     body: Dict[str, Any] = Field(..., description="body模板示例")
 
     @classmethod
-    def get_preset_templates(cls) -> List["AgentPresetTemplate"]:
+    def get_preset_templates(cls) -> List["ProviderPresetTemplate"]:
         """获取预设模板列表（供前端选择）"""
         return [
             cls(

@@ -2,8 +2,8 @@ import json
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 
-from src.agent.agent import AgentConfig
-from src.agent.client import AgentClient
+from src.model_provider.models import ProviderConfig
+from src.model_provider.client import ProviderClient
 from src.types_module import Product, Seller, ProductPriceData, Analysis
 from src.utils.logger import logger
 from src.utils.utils import dict_pick, fix_me
@@ -14,7 +14,7 @@ class ProductEvaluator:
     商品评估器：按步骤调用 AI
     """
 
-    def __init__(self, text_ai_client: AgentClient):
+    def __init__(self, text_ai_client: ProviderClient):
         self.history: List[Dict[str, Any]] = []
         self.text_ai_client = text_ai_client
         logger.debug("ProductEvaluator 初始化完成")
@@ -112,7 +112,7 @@ class ProductEvaluator:
         prompt = (
             f"上一步对卖家的分析结果：{json.dumps(self.history[-1].get('reply'), ensure_ascii=False)}\n\n"
             f"历史价格数据：{json.dumps(history_prices, ensure_ascii=False) if history_prices else 'null'}\n\n"
-            f"当前时间：{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}\n"
+            f"当前时间：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
             f"目标商品描述: {target_product.get('description')}"
             "请结合卖家分析、目标商品描述和以下商品信息分析商品质量、可信度、商品符合度，给出 0-100 的建议度(suggestion)，并提供清晰的分析(analysis)和简短原因(reason, 中文)\n"
             f'商品信息：: {json.dumps(product_info, ensure_ascii=False)}\n\n'
@@ -190,6 +190,16 @@ class ProductEvaluator:
         return self.synthesize_final()
 
     @staticmethod
-    def create_from_config(text_agent_config: AgentConfig):
-        text_ai_client = AgentClient(text_agent_config)
+    def create_from_config(text_provider_config: ProviderConfig):
+        text_ai_client = ProviderClient(text_provider_config)
         return ProductEvaluator(text_ai_client)
+
+
+def _create_product_evaluator(*, text_provider_config: ProviderConfig) -> ProductEvaluator:
+    return ProductEvaluator.create_from_config(text_provider_config)
+
+
+from src.agent.registry import register_agent
+
+register_agent("product_evaluator", _create_product_evaluator)
+

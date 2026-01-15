@@ -38,8 +38,8 @@ class AppConfig:
             },
             "evaluator": {
                 "enabled": True,
-                "textAgent": None,
-                "imagAgent": None,
+                "textProvider": None,
+                "imageProvider": None,
             }
         }
 
@@ -157,12 +157,13 @@ class AppConfig:
         return self.get('evaluator.enabled', True)
 
     @property
-    def evaluator_text_agent(self):
-        return self.get('evaluator.textAgent', None)
+    def evaluator_text_provider(self):
+        return self.get('evaluator.textProvider', None)
 
     @property
-    def evaluator_image_agent(self):
-        return self.get('evaluator.imageAgent', None)
+    def evaluator_image_provider(self):
+        return self.get('evaluator.imageProvider', None)
+
 
     @property
     def browser_headless(self):
