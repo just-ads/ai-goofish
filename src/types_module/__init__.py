@@ -19,7 +19,8 @@ __all__ = [
     'Task', 'TaskResult', 'TaskResultHistory', 'TaskResultPagination',
 
     # Notify types
-    'NtfyConfig', 'GotifyConfig', 'NotificationProvider', 'NotificationProviders',
+    'NtfyConfig', 'GotifyConfig', 'WechatWebhookConfig', 'NotificationProvider', 'NotificationProviders',
+
 
     # Server types
     'PaginationOptions', 'GoofishState',

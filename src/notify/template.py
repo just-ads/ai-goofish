@@ -27,5 +27,18 @@ def get_notifier_template():
                 }
             },
             'doc': 'https://gotify.net/docs/index'
+        },
+        {
+            'id': '2',
+            'type': 'webchat',
+            'name': '企业微信机器人(Webhook)',
+            'template': {
+                'url': {
+                    'name': 'Webhook 地址',
+                    'type': 'url',
+                }
+            },
+            'doc': 'https://developer.work.weixin.qq.com/document/path/99110'
         }
     ]
+

@@ -4,7 +4,10 @@ Notifier相关路由模块
 """
 from fastapi import APIRouter, HTTPException, Depends
 
+from urllib.parse import urlsplit, urlunsplit, parse_qsl, urlencode
+
 from src.api.auth import verify_token, success_response
+
 from src.notify.config import (
     get_notifier_config, get_all_notifiers,
     add_notifier_config, update_notifier_config,
@@ -17,7 +20,19 @@ from src.notify.template import get_notifier_template
 router = APIRouter(prefix="/notifier", tags=["notifier"])
 
 
+def _mask_wecom_webhook_url(url: str) -> str:
+    """企业微信 webhook URL 里的 key 属于敏感信息。"""
+    try:
+        parts = urlsplit(url)
+        query = [(k, "***" if k == "key" else v) for k, v in parse_qsl(parts.query, keep_blank_values=True)]
+        masked_query = urlencode(query)
+        return urlunsplit((parts.scheme, parts.netloc, parts.path, masked_query, parts.fragment))
+    except Exception:
+        return url
+
+
 # --------------- Notifier模板接口 ----------------
+
 @router.get("/templates", dependencies=[Depends(verify_token)])
 async def api_get_notifier_templates():
     """获取Notifier预设模板列表"""
@@ -39,6 +54,9 @@ async def api_get_notifiers():
             # 隐藏敏感信息
             if 'token' in notifier and notifier['token']:
                 notifier['token'] = '***' + notifier['token'][-4:] if len(notifier['token']) > 4 else '***'
+            if notifier.get('type') == 'wecom' and notifier.get('url'):
+                notifier['url'] = _mask_wecom_webhook_url(str(notifier['url']))
+
 
         return success_response("获取成功", notifiers)
     except Exception as e:
@@ -55,8 +73,11 @@ async def api_create_notifier(config: dict):
 
         if 'token' in result and result['token']:
             result['token'] = '***' + result['token'][-4:] if len(result['token']) > 4 else '***'
+        if result.get('type') == 'wecom' and result.get('url'):
+            result['url'] = _mask_wecom_webhook_url(str(result['url']))
 
         return success_response("创建成功", result)
+
     except HTTPException:
         raise
     except Exception as e:
@@ -73,8 +94,11 @@ async def api_get_notifier(notifier_id: str):
 
         if 'token' in notifier and notifier['token']:
             notifier['token'] = '***' + notifier['token'][-4:] if len(notifier['token']) > 4 else '***'
+        if notifier.get('type') == 'wecom' and notifier.get('url'):
+            notifier['url'] = _mask_wecom_webhook_url(str(notifier['url']))
 
         return success_response("获取成功", notifier)
+
     except HTTPException:
         raise
     except Exception as e:
@@ -108,8 +132,11 @@ async def api_update_notifier(notifier_id: str, config: dict):
 
         if 'token' in notifier and notifier['token']:
             notifier['token'] = '***' + notifier['token'][-4:] if len(notifier['token']) > 4 else '***'
+        if notifier.get('type') == 'wecom' and notifier.get('url'):
+            notifier['url'] = _mask_wecom_webhook_url(str(notifier['url']))
 
         return success_response("更新成功", notifier)
+
     except HTTPException:
         raise
     except Exception as e:

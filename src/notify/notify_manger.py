@@ -1,9 +1,14 @@
+from __future__ import annotations
+
 from typing import Any, List
 
 from src.notify.config import get_all_notifiers
+
 from src.notify.gotify import GotifyNotifier
 from src.notify.ntfy import NtfyNotifier
+from src.notify.wechat_service import WechatWebhookNotifier
 from src.types_module import TaskResult, NotificationProviders, NotificationProvider
+
 
 
 class NotificationManager:
@@ -30,7 +35,10 @@ class NotificationManager:
             return NtfyNotifier(config)
         if notif_type == 'gotify':
             return GotifyNotifier(config)
+        if notif_type == 'webchat':
+            return WechatWebhookNotifier(config)
         return None
+
 
     @staticmethod
     async def create_from_ids(ids: List[str]) -> NotificationManager:
