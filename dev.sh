@@ -54,10 +54,14 @@ start_services() {
     echo -e "${GREEN}[后端]${NC} 启动 FastAPI 服务器..."
     if [ -f ".venv/bin/python" ]; then
         source .venv/bin/activate
+        set DEV=1
+        set DEBUG=1
         python start.py &
         BACKEND_PID=$!
     elif [ -f "venv/bin/python" ]; then
         source venv/bin/activate
+        set DEV=1
+        set DEBUG=1
         python start.py &
         BACKEND_PID=$!
     fi

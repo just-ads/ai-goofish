@@ -3,7 +3,7 @@
 AI Goofish 快速启动脚本
 一键启动前端和后端开发服务器
 """
-
+import os
 import platform
 import signal
 import subprocess
@@ -62,9 +62,13 @@ class DevServer:
         """启动后端服务器"""
         venv_python = self.get_venv_python()
         print(f"🚀 启动后端服务 (Python: {venv_python})...")
+        env = os.environ.copy()
+        env['DEV'] = '1'
+        env['DEBUG'] = '1'
         backend_process = subprocess.Popen(
             [venv_python, "start.py"],
             cwd=self.project_root,
+            env=env
         )
         self.processes.append(("backend", backend_process))
         return backend_process

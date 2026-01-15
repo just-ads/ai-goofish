@@ -48,9 +48,9 @@ echo.
 REM 启动后端（新窗口）
 echo [后端] 启动 FastAPI 服务器...
 if exist ".venv\Scripts\python.exe" (
-    start "AI Goofish Backend" cmd /k ".venv\Scripts\activate.bat && python start.py"
+    start "AI Goofish Backend" cmd /k ".venv\Scripts\activate.bat && set DEV=1 && set DEBUG=1 && python start.py"
 ) else if exist "venv\Scripts\python.exe" (
-    start "AI Goofish Backend" cmd /k "venv\Scripts\activate.bat && python start.py"
+    start "AI Goofish Backend" cmd /k "venv\Scripts\activate.bat && set DEV=1 && set DEBUG=1 && python start.py"
 ) else (
     echo ❌ 找不到 Python 虚拟环境
     pause

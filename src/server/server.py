@@ -37,9 +37,16 @@ def load_or_create_secret_key():
 
 # 计算密码的MD5值（与原始逻辑一致）
 WEB_PASSWORD_MD5 = hashlib.md5(WEB_PASSWORD.encode('utf-8')).hexdigest()
+DEV = os.getenv("DEV", "0").lower() == "1"
 
 # 创建FastAPI应用
-app = FastAPI(title="闲鱼智能监控机器人", lifespan=lifespan)
+app = FastAPI(
+    title="闲鱼智能监控机器人",
+    lifespan=lifespan,
+    redoc_url=None,
+    docs_url='/docs' if DEV else None,
+    openapi_url='/openapi.json' if DEV else None,
+)
 
 # 挂载静态文件
 app.mount('/static', StaticFiles(directory='resources/static'), name='static')
