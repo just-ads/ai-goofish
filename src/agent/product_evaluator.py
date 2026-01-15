@@ -2,6 +2,7 @@ import json
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 
+from src.agent.agent import AgentConfig
 from src.agent.client import AgentClient
 from src.types_module import Product, Seller, ProductPriceData, Analysis
 from src.utils.logger import logger
@@ -187,3 +188,8 @@ class ProductEvaluator:
 
         logger.info("商品评估流程完成")
         return self.synthesize_final()
+
+    @staticmethod
+    def create_from_config(text_agent_config: AgentConfig):
+        text_ai_client = AgentClient(text_agent_config)
+        return ProductEvaluator(text_ai_client)

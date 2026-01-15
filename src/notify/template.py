@@ -1,17 +1,30 @@
 def get_notifier_template():
     return [
         {
+            'id': '0',
             'type': 'ntfy',
+            'name': 'ntfy',
             'template': {
-                'url': '通知地址'
+                'url': {
+                    'name': '通知地址',
+                    'type': 'url',
+                }
             },
             'doc': 'https://docs.ntfy.sh/'
         },
         {
+            'id': '1',
             'type': 'gotify',
+            'name': 'gotify',
             'template': {
-                'url': '通知地址',
-                'token': 'token'
+                'url': {
+                    'name': '通知地址',
+                    'type': 'url',
+                },
+                'token': {
+                    'name': 'token',
+                    'type': 'password',
+                }
             },
             'doc': 'https://gotify.net/docs/index'
         }

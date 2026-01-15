@@ -27,16 +27,8 @@ async def get_notifier_config(notifier_id: str) -> Optional[Dict]:
 
     try:
         notifiers = json.loads(data_str) if data_str else []
-
         notifier = next((item for item in notifiers if isinstance(item, dict) and item.get('id') == notifier_id), None)
-
-        if not notifier:
-            return None
-
-        try:
-            return notifier
-        except Exception as e:
-            raise ValueError(f"Notifier配置解析失败: {e}")
+        return notifier
 
     except json.JSONDecodeError as e:
         raise ValueError(f"notifier.config文件JSON格式错误: {e}")

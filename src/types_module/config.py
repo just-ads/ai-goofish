@@ -1,9 +1,7 @@
 """
 config 类型定义模块
 """
-from typing import TypedDict, Optional, Literal
-
-from src.types_module.notify import NotifierIds
+from typing import TypedDict, Optional, Literal, List
 
 
 class BrowserConfig(TypedDict, total=False):
@@ -15,7 +13,7 @@ class BrowserConfig(TypedDict, total=False):
 class NotificationConfig(TypedDict, total=False):
     """通知配置"""
     enabled: bool
-    providers: NotifierIds  # 只存储启用的notifier ID列表
+    providers: List[str]
 
 
 class EvaluatorConfig(TypedDict, total=False):

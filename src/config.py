@@ -149,10 +149,7 @@ class AppConfig:
         return self.get('notification.enabled', True)
 
     @property
-    def notification_providers(self) -> List[Dict]:
-        """
-        获取启用的Notifier ID列表
-        """
+    def notification_providers(self) -> List[str]:
         return self.get('notifications.providers', [])
 
     @property

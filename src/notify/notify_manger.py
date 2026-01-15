@@ -1,5 +1,6 @@
-from typing import Any
+from typing import Any, List
 
+from src.notify.config import get_all_notifiers
 from src.notify.gotify import GotifyNotifier
 from src.notify.ntfy import NtfyNotifier
 from src.types_module import TaskResult, NotificationProviders, NotificationProvider
@@ -30,3 +31,12 @@ class NotificationManager:
         if notif_type == 'gotify':
             return GotifyNotifier(config)
         return None
+
+    @staticmethod
+    async def create_from_ids(ids: List[str]) -> NotificationManager:
+        notifiers_configs = await get_all_notifiers()
+        active_configs = [
+            config for config in notifiers_configs
+            if config.get("id") in ids
+        ]
+        return NotificationManager(active_configs)
