@@ -8,7 +8,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from src.api.auth import verify_token
 from src.api.utils import success_response
 from src.config import set_global_config, AppConfig, get_config_instance
-from src.types_module import AppConfigModel
+from src.types import AppConfigModel
 
 # 创建路由器
 router = APIRouter(prefix="/system", tags=["system"])

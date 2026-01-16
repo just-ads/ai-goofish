@@ -14,7 +14,7 @@ from src.server.scheduler import (
     is_task_running, get_all_running_tasks, stop_task
 )
 from src.task.task import get_all_tasks, add_task, update_task, get_task, remove_task
-from src.types_module import Task
+from src.types import Task
 
 # 创建路由器
 router = APIRouter(prefix="/tasks", tags=["tasks"])

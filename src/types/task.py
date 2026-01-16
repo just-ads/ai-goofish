@@ -4,7 +4,7 @@
 from enum import Enum
 from typing import TypedDict, Optional, List, Set
 
-from src.types_module.product import Product, Seller, Analysis
+from src.types.product import Product, Seller, Analysis
 
 
 class Task(TypedDict, total=False):

@@ -8,7 +8,7 @@ from src.api.auth import verify_token
 from src.api.utils import success_response
 from src.task.result import get_task_result, remove_task_result, get_product_history_info
 from src.task.task import get_task
-from src.types_module import PaginationOptions
+from src.types import PaginationOptions
 
 # 创建路由器
 router = APIRouter(prefix="/results", tags=["results"])

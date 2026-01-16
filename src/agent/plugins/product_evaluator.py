@@ -2,9 +2,9 @@ import json
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 
-from src.model_provider.models import ProviderConfig
+from src.model_provider.models import AiConfig
 from src.model_provider.client import ProviderClient
-from src.types_module import Product, Seller, ProductPriceData, Analysis
+from src.types import Product, Seller, ProductPriceData, Analysis
 from src.utils.logger import logger
 from src.utils.utils import dict_pick, fix_me
 
@@ -190,12 +190,12 @@ class ProductEvaluator:
         return self.synthesize_final()
 
     @staticmethod
-    def create_from_config(text_provider_config: ProviderConfig):
+    def create_from_config(text_provider_config: AiConfig):
         text_ai_client = ProviderClient(text_provider_config)
         return ProductEvaluator(text_ai_client)
 
 
-def _create_product_evaluator(*, text_provider_config: ProviderConfig) -> ProductEvaluator:
+def _create_product_evaluator(*, text_provider_config: AiConfig) -> ProductEvaluator:
     return ProductEvaluator.create_from_config(text_provider_config)
 
 

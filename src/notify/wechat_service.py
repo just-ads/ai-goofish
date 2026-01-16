@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import httpx
 
-from src.types_module import TaskResult, WechatWebhookConfig
+from src.types import TaskResult, WechatWebhookConfig
 from src.utils.logger import logger
 
 

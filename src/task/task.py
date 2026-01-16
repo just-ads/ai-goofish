@@ -3,7 +3,7 @@ from typing import Optional, List
 
 from src.env import TASKS_FILE
 from src.task.result import remove_task_result
-from src.types_module import Task
+from src.types import Task
 from src.utils.file_operator import FileOperator
 
 

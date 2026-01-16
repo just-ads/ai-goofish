@@ -1,6 +1,6 @@
 import httpx
 
-from src.types_module import GotifyConfig, TaskResult
+from src.types import GotifyConfig, TaskResult
 from src.utils.logger import logger
 
 

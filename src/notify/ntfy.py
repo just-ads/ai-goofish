@@ -1,6 +1,6 @@
 import httpx
 
-from src.types_module import NtfyConfig, TaskResult
+from src.types import NtfyConfig, TaskResult
 from src.utils.logger import logger
 
 

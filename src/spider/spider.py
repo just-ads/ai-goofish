@@ -17,7 +17,7 @@ from src.notify.notify_manger import NotificationManager
 from src.spider.parsers import pares_product_info_and_seller_info, pares_seller_detail_info
 from src.task.result import save_task_result, get_result_filename, get_product_history_info
 from src.task.task import get_all_tasks
-from src.types_module import Seller, Task, TaskResult
+from src.types import Seller, Task, TaskResult
 from src.utils.logger import logger
 from src.utils.utils import random_sleep, safe_get, extract_id_from_url_regex
 

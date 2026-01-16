@@ -5,7 +5,7 @@ from typing import Optional, Literal
 
 from pydantic import BaseModel
 
-from src.types_module.task import TaskResultSortBy
+from src.types.task import TaskResultSortBy
 
 
 class GoofishState(BaseModel):

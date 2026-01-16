@@ -9,14 +9,14 @@ import time
 import httpx
 from typing import List, Dict, Any, Optional, Union
 
-from src.model_provider.models import ProviderConfig, ProviderMessage, ProviderResponse
+from src.model_provider.models import AiConfig, ChatMessage, ProviderResponse
 from src.utils.logger import logger
 
 
 class ProviderClient:
     """通用 Provider 客户端"""
 
-    def __init__(self, config: ProviderConfig):
+    def __init__(self, config: AiConfig):
         """
         初始化 Provider 客户端
 
@@ -52,7 +52,7 @@ class ProviderClient:
 
     async def ask(
             self,
-            messages: Union[List[ProviderMessage], List[Dict[str, str]]],
+            messages: Union[List[ChatMessage], List[Dict[str, str]]],
             parameters: Optional[Dict[str, Any]] = None,
             context: Optional[Dict[str, Any]] = None,
             max_retries: int = 3
@@ -276,7 +276,7 @@ class ProviderClient:
 
         return None
 
-    def _format_messages(self, messages: Union[List[ProviderMessage], List[Dict[str, str]]]) -> List[Dict[str, str]]:
+    def _format_messages(self, messages: Union[List[ChatMessage], List[Dict[str, str]]]) -> List[Dict[str, str]]:
         """
         格式化消息列表
 
@@ -289,7 +289,7 @@ class ProviderClient:
         formatted_messages = []
 
         for msg in messages:
-            if isinstance(msg, ProviderMessage):
+            if isinstance(msg, ChatMessage):
                 message_dict = msg.model_dump(exclude_none=True)
                 formatted_messages.append(message_dict)
             elif isinstance(msg, dict):
@@ -298,7 +298,7 @@ class ProviderClient:
                     raise ValueError(f"消息字典必须包含role和content字段: {msg}")
 
                 # 创建ProviderMessage进行验证
-                agent_msg = ProviderMessage(**msg)
+                agent_msg = ChatMessage(**msg)
                 formatted_messages.append(agent_msg.model_dump(exclude_none=True))
             else:
                 raise ValueError(f"不支持的消息类型: {type(msg)}")
@@ -313,7 +313,7 @@ class ProviderClient:
             连接是否成功
         """
         try:
-            test_message = ProviderMessage(
+            test_message = ChatMessage(
                 role="user",
                 content="Hello, please respond with 'OK' if you can hear me."
             )

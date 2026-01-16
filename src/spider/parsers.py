@@ -1,7 +1,7 @@
 import math
 from typing import Dict, Any
 
-from src.types_module import Product, Seller
+from src.types import Product, Seller
 from src.utils.utils import safe_get
 
 

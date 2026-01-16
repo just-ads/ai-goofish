@@ -7,7 +7,7 @@ from src.notify.config import get_all_notifiers
 from src.notify.gotify import GotifyNotifier
 from src.notify.ntfy import NtfyNotifier
 from src.notify.wechat_service import WechatWebhookNotifier
-from src.types_module import TaskResult, NotificationProviders, NotificationProvider
+from src.types import TaskResult, NotificationProviders, NotificationProvider
 
 
 
