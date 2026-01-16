@@ -1,6 +1,6 @@
-"""Generic model provider client.
+"""Generic AI client.
 
-Sends requests to a configured provider endpoint (OpenAI-compatible, etc.).
+Sends requests to a configured AI endpoint (OpenAI-compatible, etc.).
 """
 
 import asyncio
@@ -9,19 +9,19 @@ import time
 import httpx
 from typing import List, Dict, Any, Optional, Union
 
-from src.model_provider.models import ProviderConfig, ProviderMessage, ProviderResponse
+from src.ai.models import AIConfig, AIMessage, AIResponse
 from src.utils.logger import logger
 
 
-class ProviderClient:
-    """通用 Provider 客户端"""
+class AIClient:
+    """通用 AI 客户端"""
 
-    def __init__(self, config: ProviderConfig):
+    def __init__(self, config: AIConfig):
         """
-        初始化 Provider 客户端
+        初始化 AI 客户端
 
         Args:
-            config: Provider 配置
+            config: AI 配置
         """
         self.config = config
         self._client: Optional[httpx.AsyncClient] = None
@@ -52,13 +52,13 @@ class ProviderClient:
 
     async def ask(
             self,
-            messages: Union[List[ProviderMessage], List[Dict[str, str]]],
+            messages: Union[List[AIMessage], List[Dict[str, str]]],
             parameters: Optional[Dict[str, Any]] = None,
             context: Optional[Dict[str, Any]] = None,
             max_retries: int = 3
-    ) -> ProviderResponse:
+    ) -> AIResponse:
         """
-        向 Provider 发送请求
+        向 AI 服务发送请求
 
         Args:
             messages: 消息列表
@@ -67,7 +67,7 @@ class ProviderClient:
             max_retries: 最大重试次数
 
         Returns:
-            Provider 响应
+            AI 响应
         """
         # 转换消息格式
         formatted_messages = self._format_messages(messages)
@@ -92,13 +92,13 @@ class ProviderClient:
 
                 if response.success:
                     logger.info(
-                        f"Provider请求成功: {self.config.name}, "
+                        f"AI请求成功: {self.config.name}, "
                         f"尝试次数: {attempt + 1}, 延迟: {latency:.2f}s"
                     )
                     return response
                 else:
                     logger.warning(
-                        f"Provider请求失败: {self.config.name}, "
+                        f"AI请求失败: {self.config.name}, "
                         f"错误: {response.error}, 尝试次数: {attempt + 1}"
                     )
 
@@ -110,7 +110,7 @@ class ProviderClient:
 
             except Exception as e:
                 logger.error(
-                    f"Provider请求异常: {self.config.name}, "
+                    f"AI请求异常: {self.config.name}, "
                     f"错误: {e}, 尝试次数: {attempt + 1}"
                 )
 
@@ -119,8 +119,8 @@ class ProviderClient:
                     logger.info(f"等待 {wait_time} 秒后重试...")
                     await asyncio.sleep(wait_time)
 
-        return ProviderResponse.error_response(
-            f"Provider请求失败，已达到最大重试次数: {max_retries}",
+        return AIResponse.error_response(
+            f"AI请求失败，已达到最大重试次数: {max_retries}",
             self.config.id
         )
 
@@ -130,7 +130,7 @@ class ProviderClient:
             parameters: Dict[str, Any],
             context: Optional[Dict[str, Any]],
             attempt: int
-    ) -> ProviderResponse:
+    ) -> AIResponse:
         """
         发送HTTP请求
 
@@ -141,7 +141,7 @@ class ProviderClient:
             attempt: 当前尝试次数
 
         Returns:
-            Provider 响应
+            AI 响应
         """
         await self._ensure_client()
         assert self._client is not None, "HTTP客户端未初始化"
@@ -159,7 +159,7 @@ class ProviderClient:
 
             # 发送请求
             logger.debug(
-                f"发送Provider请求: {self.config.name}, "
+                f"发送AI请求: {self.config.name}, "
                 f"URL: {request_url}, 尝试: {attempt}"
             )
 
@@ -174,13 +174,13 @@ class ProviderClient:
             return self._parse_response(response)
 
         except httpx.TimeoutException:
-            return ProviderResponse.error_response("请求超时", self.config.id)
+            return AIResponse.error_response("请求超时", self.config.id)
         except httpx.RequestError as e:
-            return ProviderResponse.error_response(f"网络请求错误: {e}", self.config.id)
+            return AIResponse.error_response(f"网络请求错误: {e}", self.config.id)
         except Exception as e:
-            return ProviderResponse.error_response(f"请求处理错误: {e}", self.config.id)
+            return AIResponse.error_response(f"请求处理错误: {e}", self.config.id)
 
-    def _parse_response(self, response: httpx.Response) -> ProviderResponse:
+    def _parse_response(self, response: httpx.Response) -> AIResponse:
         """
         解析HTTP响应
 
@@ -188,12 +188,12 @@ class ProviderClient:
             response: HTTP响应
 
         Returns:
-            Provider 响应
+            AI 响应
         """
         try:
             response_data = response.json()
         except json.JSONDecodeError:
-            return ProviderResponse.error_response(
+            return AIResponse.error_response(
                 f"响应JSON解析失败: {response.text[:200]}",
                 self.config.id
             )
@@ -201,7 +201,7 @@ class ProviderClient:
         # 检查HTTP状态码
         if response.status_code != 200:
             error_msg = self._extract_error_message(response_data, response.text)
-            return ProviderResponse.error_response(
+            return AIResponse.error_response(
                 f"HTTP {response.status_code}: {error_msg}",
                 self.config.id
             )
@@ -210,14 +210,14 @@ class ProviderClient:
         content = self._extract_content(response_data)
 
         if content is None:
-            return ProviderResponse.error_response(
+            return AIResponse.error_response(
                 f"无法从响应中提取内容: {response_data}",
                 self.config.id
             )
 
-        return ProviderResponse.success_response(
+        return AIResponse.success_response(
             content=content,
-            provider_id=self.config.id,
+            id=self.config.id,
             raw_response=response_data
         )
 
@@ -276,7 +276,7 @@ class ProviderClient:
 
         return None
 
-    def _format_messages(self, messages: Union[List[ProviderMessage], List[Dict[str, str]]]) -> List[Dict[str, str]]:
+    def _format_messages(self, messages: Union[List[AIMessage], List[Dict[str, str]]]) -> List[Dict[str, str]]:
         """
         格式化消息列表
 
@@ -289,7 +289,7 @@ class ProviderClient:
         formatted_messages = []
 
         for msg in messages:
-            if isinstance(msg, ProviderMessage):
+            if isinstance(msg, AIMessage):
                 message_dict = msg.model_dump(exclude_none=True)
                 formatted_messages.append(message_dict)
             elif isinstance(msg, dict):
@@ -297,8 +297,8 @@ class ProviderClient:
                 if 'role' not in msg or 'content' not in msg:
                     raise ValueError(f"消息字典必须包含role和content字段: {msg}")
 
-                # 创建ProviderMessage进行验证
-                agent_msg = ProviderMessage(**msg)
+                # 创建AIMessage进行验证
+                agent_msg = AIMessage(**msg)
                 formatted_messages.append(agent_msg.model_dump(exclude_none=True))
             else:
                 raise ValueError(f"不支持的消息类型: {type(msg)}")
@@ -307,13 +307,13 @@ class ProviderClient:
 
     async def test_connection(self) -> bool:
         """
-        测试 Provider 连接
+        测试 AI 连接
 
         Returns:
             连接是否成功
         """
         try:
-            test_message = ProviderMessage(
+            test_message = AIMessage(
                 role="user",
                 content="Hello, please respond with 'OK' if you can hear me."
             )
@@ -324,12 +324,12 @@ class ProviderClient:
             )
 
             if response.success:
-                logger.info(f"Provider连接测试成功: {self.config.name}")
+                logger.info(f"AI连接测试成功: {self.config.name}")
                 return True
             else:
-                logger.warning(f"Provider连接测试失败: {self.config.name}, 错误: {response.error}")
+                logger.warning(f"AI连接测试失败: {self.config.name}, 错误: {response.error}")
                 return False
 
         except Exception as e:
-            logger.error(f"Provider连接测试异常: {self.config.name}, 错误: {e}")
+            logger.error(f"AI连接测试异常: {self.config.name}, 错误: {e}")
             return False

@@ -9,8 +9,8 @@ from urllib.parse import urlencode
 
 from playwright.async_api import async_playwright, Page, TimeoutError, Locator
 
-from src.model_provider.config import get_provider_config
 from src.agent.registry import create_agent
+from src.ai.config import get_ai_config
 from src.config import get_config_instance
 from src.env import STATE_FILE, RUNNING_IN_DOCKER
 from src.notify.notify_manger import NotificationManager
@@ -384,9 +384,9 @@ async def main(debug: bool = False):
     product_evaluator = None
 
     if config.is_evaluator_enabled:
-        text_provider_config = await get_provider_config(config.evaluator_text_provider)
-        if text_provider_config:
-            product_evaluator = create_agent("product_evaluator", text_provider_config=text_provider_config)
+        text_ai_config = await get_ai_config(config.evaluator_text_ai)
+        if text_ai_config:
+            product_evaluator = create_agent("product_evaluator", text_provider_config=text_ai_config)
 
     coroutines = []
     for task in active_tasks:

@@ -38,8 +38,8 @@ class AppConfig:
             },
             "evaluator": {
                 "enabled": True,
-                "textProvider": None,
-                "imageProvider": None,
+                "textAI": None,
+                "imageAI": None,
             }
         }
 
@@ -157,12 +157,12 @@ class AppConfig:
         return self.get('evaluator.enabled', True)
 
     @property
-    def evaluator_text_provider(self):
-        return self.get('evaluator.textProvider', None)
+    def evaluator_text_ai(self):
+        return self.get('evaluator.textAI', None)
 
     @property
-    def evaluator_image_provider(self):
-        return self.get('evaluator.imageProvider', None)
+    def evaluator_image_ai(self):
+        return self.get('evaluator.imageAI', None)
 
 
     @property

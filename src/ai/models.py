@@ -1,7 +1,7 @@
 """
-Model provider models.
+AI models.
 
-These types describe a model/API provider configuration (endpoint, model name,
+These types describe a AI provider configuration (endpoint, model name,
 credentials, request templates, etc.).
 """
 
@@ -12,7 +12,7 @@ from typing import Dict, List, Optional, Any
 from pydantic import BaseModel, Field, validator
 
 
-class ProviderMessage(BaseModel):
+class AIMessage(BaseModel):
     """AI消息模型"""
     role: str = Field(..., description="消息角色：system/user/assistant")
     content: str = Field(..., description="消息内容")
@@ -26,11 +26,11 @@ class ProviderMessage(BaseModel):
         return v
 
 
-class ProviderConfig(BaseModel):
+class AIConfig(BaseModel):
     """
-    Provider 配置模型
+    AI 配置模型
 
-    一个 Provider 由以下部分组成：
+    一个 AI 配置由以下部分组成：
     - id: 唯一标识符
     - name: 名称（用于显示）
     - endpoint: API端点URL
@@ -40,8 +40,8 @@ class ProviderConfig(BaseModel):
     - headers: 请求头配置
     - body: 请求体配置
     """
-    id: str = Field(..., description="Provider唯一ID")
-    name: str = Field(..., description="Provider名称")
+    id: str = Field(..., description="AI配置唯一ID")
+    name: str = Field(..., description="AI配置名称")
     endpoint: str = Field(..., description="API端点URL")
     api_key: str = Field(..., description="API密钥")
     model: str = Field(..., description="模型名称")
@@ -122,13 +122,10 @@ class ProviderConfig(BaseModel):
             if key in context:
                 value = context[key]
                 if isinstance(value, (dict, list)):
-                    # 复杂类型转换为JSON字符串
                     return json.dumps(value, ensure_ascii=False)
                 else:
-                    # 简单类型转换为字符串
                     return str(value)
             else:
-                # 如果变量不存在，保持原样（或者可以抛异常）
                 return match.group(0)
 
         pattern = re.compile(r'\{\s*([\w_]+)\s*}')
@@ -151,12 +148,12 @@ class ProviderConfig(BaseModel):
             return data
 
 
-class ProviderResponse(BaseModel):
-    """Provider 响应模型"""
+class AIResponse(BaseModel):
+    """AI 响应模型"""
     success: bool = Field(..., description="请求是否成功")
     content: Optional[str] = Field(None, description="响应内容")
     error: Optional[str] = Field(None, description="错误信息")
-    provider_id: Optional[str] = Field(None, description="使用的Provider ID")
+    ai_id: Optional[str] = Field(None, description="使用的AI配置ID")
     raw_response: Optional[Dict[str, Any]] = Field(None, description="原始响应数据")
     latency: Optional[float] = Field(None, description="请求延迟（秒）")
 
@@ -164,15 +161,15 @@ class ProviderResponse(BaseModel):
     def success_response(
             cls,
             content: str,
-            provider_id: str,
+            id: str,
             raw_response: Optional[Dict[str, Any]] = None,
             latency: Optional[float] = None
-    ) -> "ProviderResponse":
+    ) -> "AIResponse":
         """创建成功响应"""
         return cls(
             success=True,
             content=content,
-            provider_id=provider_id,
+            ai_id=id,
             raw_response=raw_response,
             latency=latency,
             error=None
@@ -182,21 +179,21 @@ class ProviderResponse(BaseModel):
     def error_response(
             cls,
             error: str,
-            provider_id: Optional[str] = None
-    ) -> "ProviderResponse":
+            id: Optional[str] = None
+    ) -> "AIResponse":
         """创建错误响应"""
         return cls(
             success=False,
             error=error,
-            provider_id=provider_id,
+            ai_id=id,
             content=None,
             raw_response=None,
             latency=None
         )
 
 
-class ProviderPresetTemplate(BaseModel):
-    """Provider 预设模板"""
+class AIPresetTemplate(BaseModel):
+    """AI 预设模板"""
     id: str = Field(..., description="模板ID")
     name: str = Field(..., description="模板名称")
     description: str = Field(..., description="模板描述")
@@ -207,8 +204,8 @@ class ProviderPresetTemplate(BaseModel):
     body: Dict[str, Any] = Field(..., description="body模板示例")
 
     @classmethod
-    def get_preset_templates(cls) -> List["ProviderPresetTemplate"]:
-        """获取预设模板列表（供前端选择）"""
+    def get_preset_templates(cls) -> List["AIPresetTemplate"]:
+        """获取预设模板列表"""
         return [
             cls(
                 id='1',

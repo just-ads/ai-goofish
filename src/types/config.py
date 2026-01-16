@@ -19,8 +19,8 @@ class NotificationConfig(TypedDict, total=False):
 class EvaluatorConfig(TypedDict, total=False):
     """评估器配置"""
     enabled: bool
-    textProvider: Optional[str]
-    imageProvider: Optional[str]
+    textAI: Optional[str]
+    imageAI: Optional[str]
 
 
 
