@@ -9,7 +9,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 
-from src.model_provider.models import AiConfig, ChatMessage, ProviderPresetTemplate
+from src.model_provider.models import ProviderConfig, ProviderMessage, ProviderPresetTemplate
 from src.model_provider.client import ProviderClient
 from src.model_provider.config import (
     get_provider_config, get_all_providers,
@@ -112,7 +112,7 @@ async def api_get_provider(provider_id: str):
 @router.post("/test", dependencies=[Depends(verify_token)])
 async def api_provider_test(config: ProviderCreateModel):
     try:
-        client = ProviderClient(AiConfig(**config.model_dump(), id='test'))
+        client = ProviderClient(ProviderConfig(**config.model_dump(), id='test'))
         messages = await client.ask(messages=[{"role": "user", "content": "Hello."}])
         return success_response('测试成功', {
             "provider_name": config.name,
@@ -193,7 +193,7 @@ async def api_test_provider(provider_id: str):
 
 class ChatRequest(BaseModel):
     """聊天请求模型"""
-    messages: List[ChatMessage]
+    messages: List[ProviderMessage]
     parameters: Optional[dict] = None
 
 

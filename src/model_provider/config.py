@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel
 
-from src.model_provider.models import AiConfig
+from src.model_provider.models import ProviderConfig
 from src.utils.file_operator import FileOperator
 
 PROVIDER_CONFIG_FILE = "provider.config"
@@ -38,7 +38,7 @@ class ProviderUpdateModel(BaseModel):
     body: Optional[Dict[str, Any]] = None
 
 
-async def get_provider_config(provider_id: str) -> Optional[AiConfig]:
+async def get_provider_config(provider_id: str) -> Optional[ProviderConfig]:
     """从 provider.config 文件获取指定 Provider 配置。"""
 
     file_op = FileOperator(PROVIDER_CONFIG_FILE)
@@ -64,12 +64,12 @@ async def get_provider_config(provider_id: str) -> Optional[AiConfig]:
         return None
 
     try:
-        return AiConfig(**provider_dict)
+        return ProviderConfig(**provider_dict)
     except Exception as e:
         raise ValueError(f"Provider配置解析失败: {e}")
 
 
-async def get_all_providers() -> List[AiConfig]:
+async def get_all_providers() -> List[ProviderConfig]:
     """从 provider.config 文件获取所有 Provider 配置。"""
 
     file_op = FileOperator(PROVIDER_CONFIG_FILE)
@@ -86,13 +86,13 @@ async def get_all_providers() -> List[AiConfig]:
     if not isinstance(provider_dicts, list):
         return []
 
-    providers: List[AiConfig] = []
+    providers: List[ProviderConfig] = []
     for provider_dict in provider_dicts:
         if not isinstance(provider_dict, dict):
             continue
 
         try:
-            provider = AiConfig(**provider_dict)
+            provider = ProviderConfig(**provider_dict)
             providers.append(provider)
         except Exception:
             # Skip invalid config
@@ -101,7 +101,7 @@ async def get_all_providers() -> List[AiConfig]:
     return providers
 
 
-async def add_provider_config(provider_config: ProviderCreateModel) -> AiConfig:
+async def add_provider_config(provider_config: ProviderCreateModel) -> ProviderConfig:
     """添加 Provider 配置到 provider.config 文件。"""
 
     file_op = FileOperator(PROVIDER_CONFIG_FILE)
@@ -122,10 +122,10 @@ async def add_provider_config(provider_config: ProviderCreateModel) -> AiConfig:
 
     await file_op.write(json.dumps(data, ensure_ascii=False, indent=2))
 
-    return AiConfig(**provider_dict)
+    return ProviderConfig(**provider_dict)
 
 
-async def update_provider_config(provider_id: str, provider_update: ProviderUpdateModel) -> AiConfig:
+async def update_provider_config(provider_id: str, provider_update: ProviderUpdateModel) -> ProviderConfig:
     """更新 provider.config 文件中的 Provider 配置。"""
 
     file_op = FileOperator(PROVIDER_CONFIG_FILE)
@@ -144,10 +144,10 @@ async def update_provider_config(provider_id: str, provider_update: ProviderUpda
 
     await file_op.write(json.dumps(data, ensure_ascii=False, indent=2))
 
-    return AiConfig(**provider_dict)
+    return ProviderConfig(**provider_dict)
 
 
-async def remove_provider_config(provider_id: str) -> Optional[AiConfig]:
+async def remove_provider_config(provider_id: str) -> Optional[ProviderConfig]:
     """从 provider.config 文件删除 Provider 配置。"""
 
     file_op = FileOperator(PROVIDER_CONFIG_FILE)
@@ -166,6 +166,6 @@ async def remove_provider_config(provider_id: str) -> Optional[AiConfig]:
     await file_op.write(json.dumps(data, ensure_ascii=False, indent=2))
 
     try:
-        return AiConfig(**removed_provider)
+        return ProviderConfig(**removed_provider)
     except Exception:
         return None
