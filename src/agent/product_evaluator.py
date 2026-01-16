@@ -193,13 +193,3 @@ class ProductEvaluator:
     def create_from_config(text_ai_config: AIConfig):
         text_ai_client = AIClient(text_ai_config)
         return ProductEvaluator(text_ai_client)
-
-
-def _create_product_evaluator(*, text_ai_config: AIConfig) -> ProductEvaluator:
-    return ProductEvaluator.create_from_config(text_ai_config)
-
-
-from src.agent.registry import register_agent
-
-register_agent("product_evaluator", _create_product_evaluator)
-

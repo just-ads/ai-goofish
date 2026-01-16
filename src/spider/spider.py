@@ -9,10 +9,11 @@ from urllib.parse import urlencode
 
 from playwright.async_api import async_playwright, Page, TimeoutError, Locator
 
-from src.agent.registry import create_agent
+from src.agent.product_evaluator import ProductEvaluator
 from src.ai.config import get_ai_config
 from src.config import get_config_instance
 from src.env import STATE_FILE, RUNNING_IN_DOCKER
+from src.notify.config import get_enabled_notifiers
 from src.notify.notify_manger import NotificationManager
 from src.spider.parsers import pares_product_info_and_seller_info, pares_seller_detail_info
 from src.task.result import save_task_result, get_result_filename, get_product_history_info
@@ -204,8 +205,10 @@ class GoofishSpider:
 
         logger.info("开始写入数据")
         save_task_result(keyword, final_record)
-        logger.info("开始推送通知")
-        self.notification_manager.notify(final_record)
+
+        if self.notification_manager:
+            logger.info("开始推送通知")
+            self.notification_manager.notify(final_record)
 
     async def process_seller(self, seller_info: Seller):
         """处理卖家信息"""
@@ -378,15 +381,16 @@ async def main(debug: bool = False):
     config = get_config_instance()
 
     notification_manager = None
-    if config.is_notifications_enabled and config.notification_providers:
-        notification_manager = NotificationManager.create_from_ids(config.notification_providers)
+    if config.is_notifications_enabled:
+        notifiers = await get_enabled_notifiers()
+        if notifiers:
+            notification_manager = NotificationManager.create_from_configs(notifiers)
 
     product_evaluator = None
-
     if config.is_evaluator_enabled:
         text_ai_config = await get_ai_config(config.evaluator_text_ai)
         if text_ai_config:
-            product_evaluator = create_agent("product_evaluator", text_provider_config=text_ai_config)
+            product_evaluator = ProductEvaluator.create_from_config(text_ai_config)
 
     coroutines = []
     for task in active_tasks:

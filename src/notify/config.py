@@ -55,6 +55,17 @@ async def get_all_notifiers() -> List[Dict]:
         raise ValueError(f"notifier.config文件JSON格式错误: {e}")
 
 
+async def get_enabled_notifiers() -> List[Dict]:
+    """
+    从notifier.config文件获取启用的Notifier配置
+
+    Returns:
+        Notifier配置对象列表
+    """
+    notifiers = await get_all_notifiers()
+    return [notifier for notifier in notifiers if notifier.get('enable', False)]
+
+
 async def add_notifier_config(notifier_config: Dict) -> Dict:
     """
     添加Notifier配置到notifier.config文件

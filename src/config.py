@@ -34,7 +34,6 @@ class AppConfig:
             },
             "notifications": {
                 "enabled": False,
-                "providers": []
             },
             "evaluator": {
                 "enabled": True,
@@ -149,10 +148,6 @@ class AppConfig:
         return self.get('notification.enabled', True)
 
     @property
-    def notification_providers(self) -> List[str]:
-        return self.get('notifications.providers', [])
-
-    @property
     def is_evaluator_enabled(self) -> bool:
         return self.get('evaluator.enabled', True)
 
@@ -163,7 +158,6 @@ class AppConfig:
     @property
     def evaluator_image_ai(self):
         return self.get('evaluator.imageAI', None)
-
 
     @property
     def browser_headless(self):
