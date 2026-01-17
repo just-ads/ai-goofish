@@ -89,6 +89,13 @@ async def get_product_history_info(keyword: str) -> TaskResultHistory:
     filename = get_result_filename(keyword)
     prices_by_time = defaultdict(list)
     ids = set()
+    prices = []
+
+    if not os.path.exists(filename):
+        return {
+            'processed': ids,
+            'prices': prices,
+        }
 
     async with aiofiles.open(filename, 'r', encoding='utf-8') as f:
         async for line in f:
@@ -101,7 +108,6 @@ async def get_product_history_info(keyword: str) -> TaskResultHistory:
                 price = clean_price(price_str)
                 prices_by_time[time].append(price)
 
-    prices = []
     for time, price_list in prices_by_time.items():
         if not price_list:
             continue
