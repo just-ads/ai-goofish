@@ -2,7 +2,7 @@ import asyncio
 import random
 import re
 
-from typing import Optional
+from typing import Optional, Dict, Any, List
 
 from src.utils.logger import logger
 
@@ -36,7 +36,7 @@ def clean_price(price_str: str) -> float:
         return 0.0
 
 
-def dict_pick(src: dict, keys: list, default=None, strict=False) -> dict:
+def dict_pick(src: Dict[str, Any], keys: List[str], default=None, strict=False) -> dict:
     """
     从字典中复制指定键对应的值。
 
@@ -89,3 +89,13 @@ def extract_id_from_url_regex(url: str) -> Optional[str]:
     except Exception as e:
         print(f"从URL提取id时发生错误: {url}, 错误: {e}")
         return None
+
+
+def fix_me(text: str) -> str:
+    start = text.find('{')
+    end = text.rfind('}')
+
+    if start == -1 or end == -1 or start > end:
+        return text
+
+    return text[start:end + 1]

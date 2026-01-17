@@ -1,129 +1,295 @@
+"""
+配置管理
+"""
+
 import json
 import os
+from typing import Dict, Any, List
 
-from dotenv import load_dotenv
-
+from src.types import AppConfigModel
 from src.utils.logger import logger
 
-load_dotenv()
 
-SECRET_KEY_FILE = 'secret_key.txt'
-STATE_FILE = "goofish_state.json"
-RESULT_FILE = "result.json"
-IMAGE_SAVE_DIR = "images"
-TASKS_FILE = "tasks.json"
+class AppConfig:
+    """应用配置类"""
 
-os.makedirs(IMAGE_SAVE_DIR, exist_ok=True)
+    def __init__(self, config_file: str = "app.config"):
+        """
+        初始化配置
 
-# --- API URL Patterns ---
-API_URL_PATTERN = "h5api.m.goofish.com/h5/mtop.taobao.idlemtopsearch.pc.search"
-DETAIL_API_URL_PATTERN = "h5api.m.goofish.com/h5/mtop.taobao.idle.pc.detail"
+        Args:
+            config_file: 配置文件路径
+        """
+        self.config_file = config_file
+        self.config: AppConfigModel = self._get_default_config()
+        self.load_config()
 
-# --- User ---
-WEB_USERNAME = os.getenv("WEB_USERNAME", 'admin')
-WEB_PASSWORD = os.getenv("WEB_PASSWORD", 'admin')
+    @staticmethod
+    def _get_default_config() -> AppConfigModel:
+        """获取默认配置"""
+        return {
+            "browser": {
+                "headless": True,
+                "channel": "chrome"
+            },
+            "notifications": {
+                "enabled": False,
+            },
+            "evaluator": {
+                "enabled": True,
+                "textAI": None,
+                "imageAI": None,
+            }
+        }
 
-# --- Environment Variables ---
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", '')
-OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", '')
-OPENAI_MODEL_NAME = os.getenv("OPENAI_MODEL_NAME", '')
-OPENAI_PROXY_URL = os.getenv("OPENAI_PROXY_URL", '')
-OPENAI_EXTRA_BODY = os.getenv("OPENAI_EXTRA_BODY", '')
-NTFY_TOPIC_URL = os.getenv("NTFY_TOPIC_URL", '')
-GOTIFY_URL = os.getenv("GOTIFY_URL", '')
-GOTIFY_TOKEN = os.getenv("GOTIFY_TOKEN", '')
-BARK_URL = os.getenv("BARK_URL", '')
-WX_BOT_URL = os.getenv("WX_BOT_URL", '')
-WEBHOOK_URL = os.getenv("WEBHOOK_URL", '')
-WEBHOOK_METHOD = os.getenv("WEBHOOK_METHOD", "POST").upper()
-WEBHOOK_HEADERS = os.getenv("WEBHOOK_HEADERS", '')
-WEBHOOK_CONTENT_TYPE = os.getenv("WEBHOOK_CONTENT_TYPE", "JSON").upper()
-WEBHOOK_QUERY_PARAMETERS = os.getenv("WEBHOOK_QUERY_PARAMETERS", '')
-WEBHOOK_BODY = os.getenv("WEBHOOK_BODY", '')
-PCURL_TO_MOBILE = os.getenv("PCURL_TO_MOBILE", "false").lower() == "true"
-BROWSER_HEADLESS = os.getenv("RUN_HEADLESS", "true").lower() != "false"
-BROWSER_CHANNEL = os.getenv("BROWSER_CHANNEL", "chrome").lower()
-RUNNING_IN_DOCKER = os.getenv("RUNNING_IN_DOCKER", "false").lower() == "true"
-SKIP_AI_ANALYSIS = os.getenv("SKIP_AI_ANALYSIS", "false").lower() == "true"
-SERVER_PORT = 8000
-MAX_CONCURRENT_TASKS = 3
+    def load_config(self) -> bool:
+        """从文件加载配置"""
+        try:
+            if not os.path.exists(self.config_file):
+                logger.warning(f"配置文件不存在: {self.config_file}，使用默认配置")
+                return True
 
-# 有效的浏览器通道列表
-VALID_BROWSER_CHANNELS = ["chrome", "msedge", "firefox"]
+            with open(self.config_file, 'r', encoding='utf-8') as f:
+                loaded_config = json.load(f)
 
-# 处理部分配置
-try:
-    logger.info("开始加载配置...")
+            merged_config = self._deep_merge(dict(self.config.copy()), loaded_config)
+            self.config = AppConfigModel(**merged_config)
 
-    MAX_CONCURRENT_TASKS = int(os.getenv("MAX_CONCURRENT_TASKS", "3"))
-    SERVER_PORT = int(os.getenv("SERVER_PORT", "8000"))
+            logger.info(f"配置加载成功: {self.config_file}")
+            return True
 
-    logger.debug("配置参数: MAX_CONCURRENT_TASKS={}, SERVER_PORT={}", MAX_CONCURRENT_TASKS, SERVER_PORT)
+        except json.JSONDecodeError as e:
+            logger.error(f"配置文件JSON解析失败: {e}")
+            return False
+        except Exception as e:
+            logger.error(f"加载配置文件失败: {e}")
+            return False
 
-    if BROWSER_CHANNEL not in VALID_BROWSER_CHANNELS:
-        logger.warning("无效的 BROWSER_CHANNEL '{}'。将使用默认值 'chrome'。", BROWSER_CHANNEL)
-        BROWSER_CHANNEL = 'chrome'
-    else:
-        logger.debug("浏览器通道设置为: {}", BROWSER_CHANNEL)
+    def save_config(self) -> bool:
+        """保存配置到文件"""
+        try:
+            with open(self.config_file, 'w', encoding='utf-8') as f:
+                json.dump(self.config, f, ensure_ascii=False, indent=2)
 
-    if RUNNING_IN_DOCKER:
-        logger.info("部署在DOCKER中，将强制使用无头模式和chrome。")
-        BROWSER_CHANNEL = 'chrome'
-        BROWSER_HEADLESS = True
-        logger.debug("Docker模式: BROWSER_CHANNEL={}, BROWSER_HEADLESS={}", BROWSER_CHANNEL, BROWSER_HEADLESS)
+            logger.info(f"配置保存成功: {self.config_file}")
+            return True
 
-    if all([OPENAI_BASE_URL, OPENAI_MODEL_NAME]):
-        if OPENAI_EXTRA_BODY:
-            try:
-                OPENAI_EXTRA_BODY = json.loads(OPENAI_EXTRA_BODY)
-                logger.debug("已解析 OPENAI_EXTRA_BODY 配置")
-            except json.JSONDecodeError as e:
-                logger.error("OPENAI_EXTRA_BODY JSON解析失败: {}", e)
-                OPENAI_EXTRA_BODY = None
-        logger.info("AI配置已加载: BASE_URL={}, MODEL={}", OPENAI_BASE_URL, OPENAI_MODEL_NAME)
-    else:
-        logger.warning("未在 .env 文件中完整设置 OPENAI_BASE_URL 和 OPENAI_MODEL_NAME。AI相关功能可能无法使用。")
-        SKIP_AI_ANALYSIS = True
+        except Exception as e:
+            logger.error(f"保存配置文件失败: {e}")
+            return False
 
-    logger.info("配置加载完成")
+    def _deep_merge(self, base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
+        """深度合并两个字典"""
+        result = base.copy()
 
-except Exception as e:
-    logger.error("配置加载过程中发生错误: {}", e)
+        for key, value in override.items():
+            if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+                result[key] = self._deep_merge(result[key], value)
+            else:
+                result[key] = value
+
+        return result
+
+    def get(self, key: str, default: Any = None) -> Any:
+        """
+        获取配置值
+
+        Args:
+            key: 配置键，支持点号分隔（如 "server.port"）
+            default: 默认值
+
+        Returns:
+            配置值
+        """
+        keys = key.split('.')
+        value = self.config
+
+        for k in keys:
+            if isinstance(value, dict) and k in value:
+                value = value[k]
+            else:
+                return default
+
+        return value
+
+    def set(self, key: str, value: Any) -> bool:
+        """
+        设置配置值
+
+        Args:
+            key: 配置键，支持点号分隔
+            value: 配置值
+
+        Returns:
+            是否成功
+        """
+        try:
+            keys = key.split('.')
+            config = self.config
+
+            # 遍历到倒数第二个键
+            for k in keys[:-1]:
+                if k not in config:
+                    config[k] = {}
+                config = config[k]
+
+            # 设置最后一个键的值
+            config[keys[-1]] = value
+
+            # 保存配置
+            return self.save_config()
+
+        except Exception as e:
+            logger.error(f"设置配置失败: {key} = {value}, 错误: {e}")
+            return False
+
+    @property
+    def is_notifications_enabled(self) -> bool:
+        return self.get('notification.enabled', True)
+
+    @property
+    def is_evaluator_enabled(self) -> bool:
+        return self.get('evaluator.enabled', True)
+
+    @property
+    def evaluator_text_ai(self):
+        return self.get('evaluator.textAI', None)
+
+    @property
+    def evaluator_image_ai(self):
+        return self.get('evaluator.imageAI', None)
+
+    @property
+    def browser_headless(self):
+        return self.get('browser.headless', True)
+
+    @property
+    def browser_channel(self):
+        return self.get('browser.channel', 'chrome')
+
+    def update_config(self, updates: AppConfigModel) -> bool:
+        """
+        批量更新配置
+
+        Args:
+            updates: 要更新的配置字典，支持嵌套更新
+
+        Returns:
+            是否成功
+
+        Example:
+            config.update_config({
+                "server": {"port": 8080},
+                "browser": {"headless": False}
+            })
+        """
+        try:
+            merged_config = self._deep_merge(dict(self.config.copy()), dict(updates.copy()))
+            self.config = AppConfigModel(**merged_config)
+            return self.save_config()
+        except Exception as e:
+            logger.error(f"批量更新配置失败: {updates}, 错误: {e}")
+            return False
+
+    @staticmethod
+    def validate_config(config: AppConfigModel) -> Dict[str, List[str]]:
+        """
+        验证配置的有效性
+
+        Args:
+            config: 要验证的配置字典
+
+        Returns:
+            验证错误字典，为空表示验证通过
+        """
+        errors = {}
+
+        # 验证浏览器配置
+        if "browser" in config:
+            browser = config["browser"]
+            if "headless" in browser and not isinstance(browser["headless"], bool):
+                errors.setdefault("browser", []).append("headless 必须是布尔值")
+            if "channel" in browser and browser["channel"] not in ["chrome", "firefox", "webkit"]:
+                errors.setdefault("browser", []).append("channel 必须是 chrome, firefox, webkit 之一")
+
+        # 验证通知配置
+        if "notifications" in config:
+            notifications = config["notifications"]
+            if "enabled" in notifications and not isinstance(notifications["enabled"], bool):
+                errors.setdefault("notifications", []).append("enabled 必须是布尔值")
+
+        # 验证评估器配置
+        if "evaluator" in config:
+            evaluator = config["evaluator"]
+            if "enabled" in evaluator and not isinstance(evaluator["enabled"], bool):
+                errors.setdefault("evaluator", []).append("enabled 必须是布尔值")
+
+        return errors
+
+    def validate_current_config(self) -> Dict[str, List[str]]:
+        """
+        验证当前配置的有效性
+
+        Returns:
+            验证错误字典，为空表示验证通过
+        """
+        return self.validate_config(self.config)
+
+    def set_config(self, config: AppConfigModel) -> bool:
+        """
+        全量设置配置
+
+        Args:
+            config: 完整的配置字典
+
+        Returns:
+            是否成功
+
+        Example:
+            config.set_config({
+                "browser": {"headless": False},
+                "agents": [...]
+            })
+        """
+        try:
+            validation_errors = self.validate_config(config)
+            if validation_errors:
+                logger.error(f"配置验证失败: {validation_errors}")
+                return False
+
+            # 设置新配置
+            self.config = config
+
+            # 保存配置
+            return self.save_config()
+
+        except Exception as e:
+            logger.error(f"全量设置配置失败: {e}")
+            return False
+
+    def get_config(self) -> Dict[str, Any]:
+        return dict(self.config.copy())
 
 
-def get_envs():
-    """获取环境变量配置"""
-    logger.debug("获取环境变量配置")
-    return {
-        "OPENAI_BASE_URL": OPENAI_BASE_URL,
-        "OPENAI_API_KEY": OPENAI_API_KEY,
-        "OPENAI_MODEL_NAME": OPENAI_MODEL_NAME,
-        "OPENAI_PROXY_URL": OPENAI_PROXY_URL,
-        "OPENAI_EXTRA_BODY": json.dumps(OPENAI_EXTRA_BODY) if OPENAI_EXTRA_BODY else "",
-    }
+# 全局配置实例
+_config_instance: AppConfig = AppConfig()
 
 
-def set_envs(updates: dict, env_file=".env"):
-    """设置环境变量并更新.env文件"""
-    logger.info("开始更新环境变量配置")
-    logger.debug("更新内容: {}", updates)
+def get_config_instance() -> AppConfig:
+    """获取全局配置实例"""
+    return _config_instance
 
-    for key, value in updates.items():
-        os.environ[key] = '' if value is None else str(value)
 
-    lines = []
-    if os.path.exists(env_file):
-        with open(env_file, "r", encoding="utf-8") as f:
-            lines = f.readlines()
+def reload_config() -> bool:
+    """重新加载配置"""
+    return _config_instance.load_config()
 
-    env_dict = {}
-    for line in lines:
-        if "=" in line and not line.strip().startswith("#"):
-            k, v = line.strip().split("=", 1)
-            env_dict[k] = v
 
-    env_dict.update(updates)
+def update_global_config(updates: AppConfigModel) -> bool:
+    """更新全局配置"""
+    return _config_instance.update_config(updates)
 
-    with open(env_file, "w", encoding="utf-8") as f:
-        for k, v in env_dict.items():
-            f.write(f"{k}={v}\n")
+
+def set_global_config(config: AppConfigModel) -> bool:
+    """全量设置全局配置"""
+    return _config_instance.set_config(config)

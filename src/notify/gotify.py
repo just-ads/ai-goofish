@@ -1,14 +1,19 @@
-import requests
+import httpx
 
+from src.types import GotifyConfig, TaskResult
 from src.utils.logger import logger
 
 
 class GotifyNotifier:
-    def __init__(self, server_url: str, token: str):
-        self.server_url = server_url.rstrip('/')
-        self.token = token
+    def __init__(self, config: GotifyConfig):
+        self.server_url = config.get('url', '').rstrip('/')
+        self.token = config.get('token', '')
 
-    def send(self, task_result: dict):
+    def test(self):
+        url = f"{self.server_url}/message?token={self.token}"
+        httpx.post(url, content='你好，准备好接受推荐了吗', timeout=10)
+
+    def send(self, task_result: TaskResult):
         try:
             url = f"{self.server_url}/message?token={self.token}"
             logger.info("推送 [Gotify] 通知，地址为：{}", url)
@@ -25,6 +30,6 @@ class GotifyNotifier:
                 'message': '\n'.join(lines),
                 'priority': 5
             }
-            requests.post(url, json=payload, timeout=10)
+            httpx.post(url, json=payload, timeout=10)
         except Exception as e:
             logger.error("[Gotify] 通知失败: {}", e)

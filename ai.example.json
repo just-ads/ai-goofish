@@ -1,0 +1,40 @@
+[
+  {
+    "id": "openai-gpt-4",
+    "name": "OpenAI GPT-4",
+    "endpoint": "https://api.openai.com/v1/chat/completions",
+    "api_key": "your-openai-api-key",
+    "model": "gpt-4",
+    "proxy": null,
+    "headers": {
+      "Authorization": "Bearer {key}",
+      "Content-Type": "application/json"
+    },
+    "body": {
+      "model": "{model}",
+      "messages": "{messages}",
+      "temperature": 0.2,
+      "max_tokens": 2000
+    }
+  },
+  {
+    "id": "claude-3-sonnet",
+    "name": "Anthropic Claude 3 Sonnet",
+    "endpoint": "https://api.anthropic.com/v1/messages",
+    "api_key": "your-claude-api-key",
+    "model": "claude-3-sonnet-20240229",
+    "proxy": null,
+    "headers": {
+      "x-api-key": "{key}",
+      "Content-Type": "application/json",
+      "anthropic-version": "2023-06-01"
+    },
+    "body": {
+      "model": "{model}",
+      "max_tokens": 2000,
+      "messages": "{messages}"
+    },
+    "enabled": false,
+    "is_default": false
+  }
+]

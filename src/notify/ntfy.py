@@ -1,5 +1,6 @@
-import requests
+import httpx
 
+from src.types import NtfyConfig, TaskResult
 from src.utils.logger import logger
 
 
@@ -15,10 +16,13 @@ def score_tags(score: int):
 
 
 class NtfyNotifier:
-    def __init__(self, topic_url: str):
-        self.topic_url = topic_url.rstrip('/')
+    def __init__(self, config: NtfyConfig):
+        self.topic_url = config.get('url', '').rstrip('/')
 
-    def send(self, task_result: dict):
+    def test(self):
+        httpx.post(self.topic_url, content='你好，准备好接受推荐了吗', timeout=30)
+
+    def send(self, task_result: TaskResult):
         logger.info("推送 [Ntfy] 通知，地址为：{}", self.topic_url)
         try:
             product = task_result['商品信息']
@@ -39,6 +43,6 @@ class NtfyNotifier:
                 'Tags': tags,
                 'Actions': f'view, 查看, {product['商品链接']}'.encode('utf-8')
             }
-            requests.post(self.topic_url, data='\n'.join(lines).encode('utf-8'), headers=headers, timeout=30)
+            httpx.post(self.topic_url, content='\n'.join(lines).encode('utf-8'), headers=headers, timeout=30)
         except Exception as e:
             logger.error("[Ntfy] 通知失败: {}", e)

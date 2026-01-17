@@ -1,9 +1,11 @@
 import json
 import os
 from collections import defaultdict
+from typing import Literal, Optional
 
 import aiofiles
 
+from src.types import TaskResultSortBy, TaskResultHistory, TaskResultPagination, TaskResult
 from src.utils.utils import clean_price
 
 output_dir = "jsonl"
@@ -13,7 +15,7 @@ def get_result_filename(keyword: str) -> str:
     return os.path.join(output_dir, f"{keyword.replace(' ', '_')}_full_data.jsonl")
 
 
-def save_task_result(keyword: str, data_record: dict):
+def save_task_result(keyword: str, data_record: TaskResult):
     """将一个包含商品和卖家信息的完整记录追加保存到 .jsonl 文件。"""
     os.makedirs(output_dir, exist_ok=True)
     filename = get_result_filename(keyword)
@@ -32,7 +34,13 @@ def remove_task_result(keyword: str):
         os.remove(filename)
 
 
-async def get_task_result(keyword: str, page: int, limit: int = 20, recommended_only: bool = False, sort_by: str = "crawl_time", order: str = "asce"):
+async def get_task_result(
+        keyword: str,
+        page: int,
+        limit: int = 20,
+        recommended_only: Optional[bool] = False,
+        sort_by: Optional[TaskResultSortBy] = "crawl_time",
+        order: Optional[Literal['asce', 'desc']] = "asce") -> TaskResultPagination:
     results = []
     filename = get_result_filename(keyword)
 
@@ -77,23 +85,29 @@ async def get_task_result(keyword: str, page: int, limit: int = 20, recommended_
     }
 
 
-async def get_product_history_info(keyword: str):
+async def get_product_history_info(keyword: str) -> TaskResultHistory:
     filename = get_result_filename(keyword)
     prices_by_time = defaultdict(list)
     ids = set()
+    prices = []
+
+    if not os.path.exists(filename):
+        return {
+            'processed': ids,
+            'prices': prices,
+        }
 
     async with aiofiles.open(filename, 'r', encoding='utf-8') as f:
         async for line in f:
             record = json.loads(line)
             product_id = record.get('商品信息', {}).get('商品ID', '')
             ids.add(product_id)
-            if record.get("分析结果", {}).get("推荐度") >= 30:
+            if record.get('分析结果', {}).get('推荐度', 0) >= 30:
                 time = record.get('爬取时间')
                 price_str = record.get('商品信息', {}).get('当前售价', '0')
                 price = clean_price(price_str)
                 prices_by_time[time].append(price)
 
-    prices = []
     for time, price_list in prices_by_time.items():
         if not price_list:
             continue

@@ -1,5 +1,7 @@
 import math
+from typing import Dict, Any
 
+from src.types import Product, Seller
 from src.utils.utils import safe_get
 
 
@@ -31,7 +33,10 @@ def format_registration_days(total_days: int) -> str:
         return "来闲鱼不足一个月"
 
 
-def pares_product_info_and_seller_info(data, base_product_info):
+def pares_product_info_and_seller_info(
+        data: Dict[str, Any],
+        base_product_info: Dict[str, Any]
+) -> tuple[Product, Seller]:
     item_do = safe_get(data, 'data', 'itemDO', default={})
     seller_do = safe_get(data, 'data', 'sellerDO', default={})
 
@@ -40,9 +45,9 @@ def pares_product_info_and_seller_info(data, base_product_info):
     if image_infos:
         all_image_urls = [img.get('url') for img in image_infos if img.get('url')]
 
-    product_info = {
-        "商品ID": base_product_info.get('product_id'),
-        "商品链接": base_product_info.get('product_url'),
+    product_info: Product = {
+        "商品ID": base_product_info.get('product_id', ''),
+        "商品链接": base_product_info.get('product_url', ''),
         "商品标题": safe_get(item_do, 'title', default="未知标题"),
         "商品描述": safe_get(item_do, 'desc', default='无'),
         "商品图片列表": all_image_urls,
@@ -65,7 +70,7 @@ def pares_product_info_and_seller_info(data, base_product_info):
     if register_day:
         register = format_registration_days(register_day)
 
-    seller_info = {
+    seller_info: Seller = {
         '卖家ID': safe_get(seller_do, 'sellerId'),
         '卖家昵称': safe_get(seller_do, 'nick', default=""),
         '实名认证': auth,
@@ -81,7 +86,7 @@ def pares_product_info_and_seller_info(data, base_product_info):
     return product_info, seller_info
 
 
-def pares_seller_detail_info(data: dict, base_data: dict):
+def pares_seller_detail_info(data: Dict[str, Any], base_data: Seller) -> Seller:
     module = safe_get(data, 'data', 'module', default={})
     base = safe_get(module, 'base')
     seller_introduction = safe_get(base, 'introduction', default='暂无')

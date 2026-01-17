@@ -1,0 +1,15 @@
+{
+  "browser": {
+    "headless": true,
+    "channel": "chrome"
+  },
+  "notifications": {
+    "enabled": false,
+    "providers": []
+  },
+  "evaluator": {
+    "enabled": true,
+    "textAgent": null,
+    "imagAgent": null
+  }
+}
