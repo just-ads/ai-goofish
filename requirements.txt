@@ -1,11 +1,9 @@
-requests~=2.32.5
 httpx~=0.28.1
 aiofiles~=25.1.0
 uvicorn~=0.38.0
 fastapi~=0.125.0
 pydantic~=2.12.5
 starlette~=0.50.0
-python-jose~=3.5.0
 APScheduler~=3.11.0
 playwright~=1.57.0
 python-dotenv~=1.2.1
