@@ -7,12 +7,23 @@
 ## 🖼️ 页面截图
 
 ### 1. 登录
-
-<img width="1189" height="908" alt="image" src="https://github.com/user-attachments/assets/00df6b62-771a-4caa-8201-fa95ccc5153f" />
+<img width="500" alt="image" src="https://github.com/user-attachments/assets/00df6b62-771a-4caa-8201-fa95ccc5153f" />
 
 ### 2. 主页
 
-<img width="1189" height="894" alt="image" src="https://github.com/user-attachments/assets/31ab2ac3-ea93-44cc-b7e4-f20f0ac91422" />
+<img width="500" alt="image" src="https://github.com/user-attachments/assets/31ab2ac3-ea93-44cc-b7e4-f20f0ac91422" />
+
+### 3. 结果查看
+
+<img width="500" alt="image" src="https://github.com/user-attachments/assets/94212bdd-e83f-4cdf-83b9-3ced881838e5" />
+
+### 4. 设置页
+
+<div style="display: flex; overflow: scroll">
+  <img width="500" alt="image" src="https://github.com/user-attachments/assets/5a91109f-beb5-43b8-b08b-f10e846eb048" />
+  <img width="500" alt="image" src="https://github.com/user-attachments/assets/960bb3d5-b67e-4aba-be5c-df0f11aad4bd" />
+</div>
+
 
 ------------------------------------------------------------------------
 
