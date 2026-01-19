@@ -28,6 +28,7 @@ WORKDIR /app
 ENV PYTHONUNBUFFERED=1 \
     RUNNING_IN_DOCKER=true \
     PLAYWRIGHT_BROWSERS_PATH=/ms-playwright \
+    PLAYWRIGHT_DOWNLOAD_HOST=https://npmmirror.com/mirrors/playwright \
     VIRTUAL_ENV=/opt/venv \
     PATH="/opt/venv/bin:$PATH"
 
