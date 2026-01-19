@@ -56,7 +56,7 @@
 
 ## ⚡ 快速开始
 
-更完整的一键开发说明见 `QUICKSTART.md`。
+更完整的一键开发说明见 [QUICKSTART.md](./QUICKSTART.md)。
 
 ### Docker 部署
 
@@ -141,33 +141,31 @@ npm run build
 - `SERVER_PORT`：服务端口（默认 8000）
 - `WEB_USERNAME` / `WEB_PASSWORD`：Web 登录用户名/密码（默认 admin/admin）
 
-注意：前端登录时会对密码做 MD5（服务端按同样逻辑校验），生产环境务必修改默认密码。
+注意：生产环境务必修改默认密码。
 
 ### 2) 系统配置（`app.config`）
 
-后端读取/写入的默认系统配置文件是 `app.config`（JSON）。可用示例：
+可用示例：
 
 ```bash
-cp config.example.json app.config
+cp app.example.config app.config
 ```
-
-对应 API：`/api/system`。
 
 ### 3) AI 配置（`ai.config`）
 
-AI Provider 配置存储在 `ai.config`（JSON 数组）。可用示例：
+可用示例：
 
 ```bash
-cp ai.example.json ai.config
+cp ai.example.config ai.config
 ```
-
-对应 API：`/api/ai`。
 
 ### 4) 通知配置（`notifier.config`）
 
-通知配置存储在 `notifier.config`（JSON 数组），通常通过 Web 管理界面创建/更新。
+可用示例：
 
-对应 API：`/api/notifier`。
+```bash
+cp notifier.example.config notifier.config
+```
 
 ------------------------------------------------------------------------
 
