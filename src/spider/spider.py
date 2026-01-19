@@ -401,7 +401,7 @@ async def main(debug: bool = False):
             product_evaluator=product_evaluator,
             state_file=STATE_FILE,
             browser_headless=True if RUNNING_IN_DOCKER else config.browser_headless,
-            browser_channel='chromium' if RUNNING_IN_DOCKER else config.browser_channel
+            browser_channel='chromium-headless-shell' if RUNNING_IN_DOCKER else config.browser_channel
         )
         coroutines.append(spider.run())
 
