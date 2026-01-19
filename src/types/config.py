@@ -7,7 +7,7 @@ from typing import TypedDict, Optional, Literal, List
 class BrowserConfig(TypedDict, total=False):
     """浏览器配置"""
     headless: bool
-    channel: Literal["chrome", "firefox", "webkit"]
+    channel: Literal["chromium", "chrome", "firefox", "webkit"]
 
 
 class NotificationConfig(TypedDict, total=False):
