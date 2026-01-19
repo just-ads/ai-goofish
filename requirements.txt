@@ -7,4 +7,5 @@ starlette~=0.50.0
 APScheduler~=3.11.0
 playwright~=1.57.0
 python-dotenv~=1.2.1
+python-jose~=3.5.0
 python-multipart~=0.0.20
