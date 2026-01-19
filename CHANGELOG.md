@@ -1,11 +1,7 @@
 # Changelog
 
 ## 2.0.0
-
-- Align documentation with current runtime files and APIs (system/AI/notifier config storage, dev scripts, Docker).
-- Add backend version marker (`src/__version__.py`).
-- Bump web UI version to 2.0.0.
-- Update built web assets in `resources/`.
-
-Notes
-- Local runtime files (e.g. `.env`, `app.config`, `ai.config`, `notifier.config`, `secret_key.txt`, `goofish_state.json`, `tasks.json`) are intentionally not part of the release.
+- [重构] 重构配置管理，更好管理配置，更好配置
+- [重构] 重构AI部分，支持所有AI提供商，优化用户界面
+- [重构] 重构通知，优化用户界面
+- [修复] 修复已知问题
