@@ -74,7 +74,7 @@ async def remove_task(task_id: int) -> Optional[Task]:
     removed_task = data.pop(task_index)
 
     if removed_task:
-        remove_task_result(removed_task['keyword'])
+        remove_task_result(removed_task['task_id'])
 
     await task_file_op.write(json.dumps(data, ensure_ascii=False, indent=2))
 

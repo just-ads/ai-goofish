@@ -61,17 +61,17 @@ class GoofishSpider:
 
     def _init_output_filename(self):
         """初始化输出文件名"""
-        keyword = self.task.get('keyword')
-        self.output_filename = get_result_filename(keyword)
+        task_id = self.task.get('task_id')
+        self.output_filename = get_result_filename(task_id)
         logger.debug("输出文件名初始化为: {}", self.output_filename)
 
     async def get_history(self):
         """获取历史记录"""
         if os.path.exists(self.output_filename):
             logger.info("发现已存在文件 {}，正在加载历史记录...", self.output_filename)
-            keyword = self.task.get('keyword')
+            task_id = self.task.get('task_id')
             try:
-                history_info = await get_product_history_info(keyword)
+                history_info = await get_product_history_info(task_id)
                 self.history_prices = history_info['prices']
                 self.processed_ids = history_info['processed']
                 logger.info("加载完成，已记录 {} 个已处理过的商品。", len(self.processed_ids))
@@ -180,6 +180,7 @@ class GoofishSpider:
         seller_info = await self.process_seller(seller_base_info)
 
         keyword = self.task.get('keyword', '')
+        task_id = self.task.get('task_id')
 
         final_record: TaskResult = {
             "爬取时间": self.crawl_time,
@@ -204,7 +205,7 @@ class GoofishSpider:
             logger.warning("AI分析为启用或未配置")
 
         logger.info("开始写入数据")
-        save_task_result(keyword, final_record)
+        save_task_result(task_id, final_record)
 
         if self.notification_manager:
             logger.info("开始推送通知")
