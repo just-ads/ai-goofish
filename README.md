@@ -31,20 +31,16 @@
 
 ```
 ./
-├── src/                  # Python 后端（API/调度/爬虫/AI/通知）
-├── webui/                # Vue 3 前端（子模块），构建输出到 ../resources/
-├── resources/            # 前端构建产物（resources/index.html + resources/static/*）
+├── src/                  # Python 后端
+├── webui/                # Vue 3 前端UI
+├── resources/            # 前端构建产物
 ├── tests/                # Python unittest
-├── jsonl/                # 采集结果（*.jsonl，一行一个 JSON）
-├── tasks.json            # 任务配置（JSON 数组）
-├── app.config            # 系统配置（JSON，默认文件名）
-├── ai.config             # AI 配置（JSON 数组）
-├── notifier.config       # 通知配置（JSON 数组）
-├── goofish_state.json    # Playwright storage_state（cookies/session）
-├── secret_key.txt        # JWT secret（自动生成/读取）
-├── start.py              # 后端启动入口
-├── start_spider.py       # 爬虫入口（按 task_id 运行）
-├── dev.py                # 一键开发（前后端一起）
+├── jsonl/                # 采集结果
+├── tasks.json            # 任务配置
+├── app.config            # 系统配置
+├── ai.config             # AI 配置
+├── notifier.config       # 通知配置
+├── dev.py                # 一键开发
 └── docker-compose.yml    # Docker Compose
 ```
 
@@ -54,13 +50,13 @@
 
 ## ✨ 功能列表
 
-- [x] 多任务并行监控与定时调度（APScheduler + 随机偏移）
+- [x] 多任务并行监控与定时调度
 - [x] 支持关键词、页数、价格区间、个人闲置等筛选条件
 - [x] 采集商品信息与卖家资料
 - [x] FastAPI 提供任务/结果/系统/AI/通知配置等管理接口
 - [x] Web 管理界面：任务管理、运行状态、结果查看
-- [x] 可选 AI 商品评估（通过 `ai.config` 配置 AI Provider）
-- [x] 通知：ntfy / gotify / 企业微信 webhook（配置存储在 `notifier.config`）
+- [x] AI 商品评估，**支持所有AI配置**
+- [x] 通知：ntfy / gotify / 企业微信 webhook
 - [x] Docker 一键部署
 
 ------------------------------------------------------------------------
