@@ -18,7 +18,6 @@ RESULT_DIR = "data/results"
 # 服务器配置
 WEB_USERNAME = os.getenv("WEB_USERNAME", 'admin')
 WEB_PASSWORD = os.getenv("WEB_PASSWORD", 'admin')
-print(WEB_USERNAME, WEB_PASSWORD)
 RUNNING_IN_DOCKER = os.getenv("RUNNING_IN_DOCKER", "false").lower() == "true"
 SERVER_PORT = 8000
 MAX_CONCURRENT_TASKS = 3
