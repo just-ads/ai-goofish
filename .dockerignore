@@ -14,3 +14,8 @@ tests
 webui
 .env.example
 .*.example.config
+
+# dev
+dev.bat
+dev.py
+dev.sh
