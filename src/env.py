@@ -3,16 +3,23 @@ from dotenv import load_dotenv
 
 from src.utils.logger import logger
 
-load_dotenv()
+load_dotenv('data/.env')
 
+# 数据储存配置
+SECRET_KEY_FILE = 'data/secret_key.txt'
+STATE_FILE = "data/goofish_state.json"
+TASKS_FILE = "data/tasks.json"
+APP_CONFIG_FILE = "data/app.config"
+AI_CONFIG_FILE = "data/ai.config"
+NOTIFIER_CONFIG_FILE = "data/notifier.config"
+IMAGE_SAVE_DIR = "data/images"
+RESULT_DIR = "data/results"
+
+# 服务器配置
 WEB_USERNAME = os.getenv("WEB_USERNAME", 'admin')
 WEB_PASSWORD = os.getenv("WEB_PASSWORD", 'admin')
+print(WEB_USERNAME, WEB_PASSWORD)
 RUNNING_IN_DOCKER = os.getenv("RUNNING_IN_DOCKER", "false").lower() == "true"
-SECRET_KEY_FILE = 'secret_key.txt'
-STATE_FILE = "goofish_state.json"
-RESULT_FILE = "result.json"
-IMAGE_SAVE_DIR = "images"
-TASKS_FILE = "tasks.json"
 SERVER_PORT = 8000
 MAX_CONCURRENT_TASKS = 3
 

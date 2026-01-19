@@ -9,9 +9,8 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel
 
 from src.ai.models import AIConfig
+from src.env import AI_CONFIG_FILE
 from src.utils.file_operator import FileOperator
-
-AI_CONFIG_FILE = "ai.config"
 
 
 class AICreateModel(BaseModel):

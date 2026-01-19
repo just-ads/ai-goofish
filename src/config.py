@@ -6,6 +6,7 @@ import json
 import os
 from typing import Dict, Any, List
 
+from src.env import APP_CONFIG_FILE
 from src.types import AppConfigModel
 from src.utils.logger import logger
 
@@ -13,7 +14,7 @@ from src.utils.logger import logger
 class AppConfig:
     """应用配置类"""
 
-    def __init__(self, config_file: str = "app.config"):
+    def __init__(self, config_file: str = APP_CONFIG_FILE):
         """
         初始化配置
 

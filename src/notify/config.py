@@ -4,9 +4,8 @@ Notifier配置管理
 import json
 from typing import Optional, List, Dict
 
+from src.env import NOTIFIER_CONFIG_FILE
 from src.utils.file_operator import FileOperator
-
-NOTIFIER_CONFIG_FILE = "notifier.config"
 
 
 async def get_notifier_config(notifier_id: str) -> Optional[Dict]:

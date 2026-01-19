@@ -7,6 +7,7 @@
 ## 🖼️ 页面截图
 
 ### 1. 登录
+
 <img width="802" height="457" alt="image" src="https://github.com/user-attachments/assets/e6a8498a-001b-4f38-a61e-9c302adb4c21" />
 
 ### 2. 主页
@@ -70,17 +71,17 @@
 1) 拉取代码（包含子模块）
 
 ```bash
-git clone --recurse-submodules https://github.com/just-ads/ai-goofish.git
+git clone https://github.com/just-ads/ai-goofish.git
 cd ai-goofish
 ```
 
-2) （可选）创建 `.env`
+3) （可选）创建 `.env`
 
 ```bash
-cp .env.example .env
+cp .env.example data/.env
 ```
 
-3) 启动
+4) 启动
 
 ```bash
 docker compose up --build -d
@@ -139,7 +140,7 @@ npm run build
 
 ## ⚙️ 配置说明
 
-本项目同时使用“环境变量（.env）”和“JSON 配置文件（*.config）”。
+配置文件目录为 `data/`
 
 ### 1) 环境变量（`.env`）
 
@@ -155,7 +156,7 @@ npm run build
 可用示例：
 
 ```bash
-cp app.example.config app.config
+cp app.example.config data/app.config
 ```
 
 ### 3) AI 配置（`ai.config`）
@@ -163,7 +164,7 @@ cp app.example.config app.config
 可用示例：
 
 ```bash
-cp ai.example.config ai.config
+cp ai.example.config data/ai.config
 ```
 
 ### 4) 通知配置（`notifier.config`）
@@ -171,7 +172,7 @@ cp ai.example.config ai.config
 可用示例：
 
 ```bash
-cp notifier.example.config notifier.config
+cp notifier.example.config data/notifier.config
 ```
 
 ------------------------------------------------------------------------
@@ -188,10 +189,7 @@ python -m unittest discover tests/
 
 以下文件/目录通常包含运行时数据或敏感信息，不建议提交到版本库：
 
-- `.env`
-- `app.config` / `ai.config` / `notifier.config`
-- `secret_key.txt`
-- `goofish_state.json`
+- `data/*`
 
 ------------------------------------------------------------------------
 

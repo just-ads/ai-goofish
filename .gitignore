@@ -10,13 +10,5 @@ __pycache__/
 *.pyc
 
 # Runtime / local config (do not commit)
-.env
-app.config
-ai.config
-notifier.config
-secret_key.txt
-goofish_state.json
-tasks.json
-jsonl/
-images/
+data
 

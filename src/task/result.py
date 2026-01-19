@@ -5,19 +5,18 @@ from typing import Literal, Optional
 
 import aiofiles
 
+from src.env import RESULT_DIR
 from src.types import TaskResultSortBy, TaskResultHistory, TaskResultPagination, TaskResult
 from src.utils.utils import clean_price
 
-output_dir = "jsonl"
-
 
 def get_result_filename(keyword: str) -> str:
-    return os.path.join(output_dir, f"{keyword.replace(' ', '_')}_full_data.jsonl")
+    return os.path.join(RESULT_DIR, f"{keyword.replace(' ', '_')}_full_data.jsonl")
 
 
 def save_task_result(keyword: str, data_record: TaskResult):
     """将一个包含商品和卖家信息的完整记录追加保存到 .jsonl 文件。"""
-    os.makedirs(output_dir, exist_ok=True)
+    os.makedirs(RESULT_DIR, exist_ok=True)
     filename = get_result_filename(keyword)
     try:
         with open(filename, "a", encoding="utf-8") as f:
