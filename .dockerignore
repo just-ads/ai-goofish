@@ -13,7 +13,7 @@ LICENSE
 tests
 webui
 .env.example
-.*.example.config
+*.example.config
 
 # dev
 dev.bat
