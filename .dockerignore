@@ -8,14 +8,9 @@ gen
 .gitignore
 .gitmodules
 LICENSE
-README.md
+*.md
 
 tests
 webui
 .env.example
-
-images
-jsonl
-secret_key.txt
-tasks.json
-goofish_state.json
+.*.example.config
