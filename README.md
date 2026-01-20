@@ -68,7 +68,25 @@
 
 ### Docker 部署
 
-1) 拉取代码（包含子模块）
+#### docker 命令一键部署
+
+```bash
+# 部署 
+docker run -d -p 8000:8000 -v ~/config/ai-goofish:/app/data --name ai-goofish justads/ai-goofish:latest
+
+# 更新
+docker pull justads/ai-goofish:latest \
+  && docker stop ai-goofish \
+  && docker rm ai-goofish \
+  && docker run -d -p 8000:8000 \
+     -v ~/config/ai-goofish:/app/data \
+     --name ai-goofish \
+     justads/ai-goofish:latest
+```
+
+#### 使用docker compose
+
+1) 拉取代码
 
 ```bash
 git clone https://github.com/just-ads/ai-goofish.git
