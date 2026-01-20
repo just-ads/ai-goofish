@@ -49,3 +49,12 @@ class ProductPriceData(TypedDict):
 class TaskResultHistory(TypedDict):
     processed: Set[int]
     prices: List[ProductPriceData]
+
+
+class TaskLogEntry(TypedDict):
+    """任务日志条目类型"""
+    id: int
+    timestamp: str
+    level: str
+    message: str
+    task_id: int

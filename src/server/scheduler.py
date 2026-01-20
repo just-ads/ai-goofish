@@ -11,6 +11,7 @@ from apscheduler.triggers.cron import CronTrigger
 
 from src.env import MAX_CONCURRENT_TASKS
 from src.server.trigger import RandomOffsetTrigger
+from src.task.logs import get_logs_file_name
 from src.task.task import get_all_tasks, Task
 from src.utils.logger import logger
 
@@ -188,10 +189,14 @@ async def run_task(task_id: int, task_name: str):
             running_tasks[task_id] = True
 
             logger.info(f"启动子进程执行爬虫: 任务ID={task_id}")
-            process = await asyncio.create_subprocess_exec(
-                sys.executable, "-u", "start_spider.py", "--task-id", str(task_id),
-                start_new_session=True
-            )
+            logs_file = get_logs_file_name(task_id)
+            with open(logs_file, 'a') as f:
+                process = await asyncio.create_subprocess_exec(
+                    sys.executable, "-u", "start_spider.py", "--task-id", str(task_id),
+                    start_new_session=True,
+                    stdout=f.fileno(),
+                    stderr=asyncio.subprocess.STDOUT
+                )
 
             scraper_processes[task_id] = process.pid
             logger.info(f"爬虫子进程已启动: PID={process.pid}, 任务ID={task_id}")
