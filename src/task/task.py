@@ -2,6 +2,7 @@ import json
 from typing import Optional, List
 
 from src.env import TASKS_FILE
+from src.task.logs import remove_logs_file
 from src.task.result import remove_task_result
 from src.types import Task
 from src.utils.file_operator import FileOperator
@@ -27,7 +28,9 @@ async def add_task(task: Task) -> Task:
 
 
 async def update_task(task_update: Task) -> Task:
-    task_id = task_update['task_id']
+    task_id = task_update.get('task_id')
+    if task_id is None:
+        raise Exception('任务ID不能为空')
 
     task_file_op = FileOperator(TASKS_FILE)
 
@@ -74,7 +77,8 @@ async def remove_task(task_id: int) -> Optional[Task]:
     removed_task = data.pop(task_index)
 
     if removed_task:
-        remove_task_result(removed_task['task_id'])
+        remove_task_result(task_id)
+        remove_logs_file(task_id)
 
     await task_file_op.write(json.dumps(data, ensure_ascii=False, indent=2))
 

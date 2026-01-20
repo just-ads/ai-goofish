@@ -16,7 +16,6 @@ def get_result_filename(task_id: int) -> str:
 
 def save_task_result(task_id: int, data_record: TaskResult):
     """将一个包含商品和卖家信息的完整记录追加保存到 .jsonl 文件。"""
-    os.makedirs(RESULT_DIR, exist_ok=True)
     filename = get_result_filename(task_id)
     try:
         with open(filename, "a", encoding="utf-8") as f:
@@ -38,7 +37,7 @@ async def get_task_result(
         page: int,
         limit: int = 20,
         recommended_only: Optional[bool] = False,
-        sort_by: Optional[TaskResultSortBy] = "crawl_time",
+        sort_by: Optional[TaskResultSortBy] = TaskResultSortBy.CRAWL_TIME,
         order: Optional[Literal['asce', 'desc']] = "asce") -> TaskResultPagination:
     results = []
     filename = get_result_filename(task_id)

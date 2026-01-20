@@ -13,6 +13,7 @@ APP_CONFIG_FILE = "data/app.config"
 AI_CONFIG_FILE = "data/ai.config"
 NOTIFIER_CONFIG_FILE = "data/notifier.config"
 IMAGE_SAVE_DIR = "data/images"
+LOGS_DIR = "data/logs"
 RESULT_DIR = "data/results"
 
 # 服务器配置
@@ -25,5 +26,8 @@ MAX_CONCURRENT_TASKS = 3
 try:
     MAX_CONCURRENT_TASKS = int(os.getenv("MAX_CONCURRENT_TASKS", "3"))
     SERVER_PORT = int(os.getenv("SERVER_PORT", "8000"))
+    os.makedirs(LOGS_DIR, exist_ok=True)
+    os.makedirs(IMAGE_SAVE_DIR, exist_ok=True)
+    os.makedirs(RESULT_DIR, exist_ok=True)
 except Exception as e:
     logger.error("配置加载过程中发生错误: {}", e)
