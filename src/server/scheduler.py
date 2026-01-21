@@ -264,7 +264,7 @@ def get_task_status(task_id: int):
     job = scheduler.get_job(f"task_{task_id}")
     return {
         'running': is_task_running(task_id),
-        'next_run_time': job.next_run_time
+        'next_run_time': job.next_run_time if job else None,
     }
 
 
