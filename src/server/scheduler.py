@@ -3,6 +3,7 @@ import os
 import signal
 import subprocess
 import sys
+from datetime import datetime
 from typing import Optional
 
 from apscheduler.jobstores.base import JobLookupError
@@ -262,9 +263,11 @@ def get_scheduler_status():
 def get_task_status(task_id: int):
     """获取任务状态"""
     job = scheduler.get_job(f"task_{task_id}")
+    next_run_time = job.next_run_time if job else None
+    next_run_time = next_run_time.strftime("%Y-%m-%d %H:%M") if next_run_time else None
     return {
         'running': is_task_running(task_id),
-        'next_run_time': job.next_run_time if job else None,
+        'next_run_time': next_run_time
     }
 
 
