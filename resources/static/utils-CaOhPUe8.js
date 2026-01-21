@@ -1,0 +1,1 @@
+function i(r){return self.navigator.permissions.query({name:"clipboard-write"}).then(e=>e.state==="granted"||e.state==="prompt"?self.navigator.clipboard.writeText(r):Promise.reject(new Error("用户拒绝访问")))}function a(r,e,t){try{return JSON.stringify(r,e,t)}catch{return r}}export{i as c,a as s};
