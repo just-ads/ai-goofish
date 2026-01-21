@@ -40,6 +40,8 @@ async def api_create_task(req: Task):
     """创建任务"""
     try:
         task = await add_task(req)
+        task_state = get_task_status(task.get('task_id'))
+        task.update(task_state)
         if task.get('enabled'):
             add_task_to_scheduler(task)
         return success_response("任务创建成功", task)
@@ -62,6 +64,8 @@ async def api_update_task(req: Task):
             # 如果任务之前是禁用状态，现在启用了，添加到调度器
             if not old_task or not old_task.get('enabled'):
                 add_task_to_scheduler(new_task)
+                task_state = get_task_status(task_id)
+                new_task.update(task_state)
             else:
                 # 如果任务之前就是启用的，更新调度器中的任务
                 await update_scheduled_task(new_task)
