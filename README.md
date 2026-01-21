@@ -8,21 +8,27 @@
 
 ### 1. 登录
 
-<img width="802" height="457" alt="image" src="https://github.com/user-attachments/assets/e6a8498a-001b-4f38-a61e-9c302adb4c21" />
+<img width="1322" height="681" alt="image" src="https://github.com/user-attachments/assets/7ed2db95-3414-4d86-9bc6-034797c5b6d9" />
+
 
 ### 2. 主页
 
-<img width="1106" height="450" alt="image" src="https://github.com/user-attachments/assets/96d38a2a-7ca6-459d-9b27-efdfafbf0c15" />
+<img width="1322" height="681" alt="image" src="https://github.com/user-attachments/assets/04f5d6c8-b71a-4730-814c-42f8da65d925" />
+
 
 ### 3. 结果查看
 
-<img alt="image" src="https://github.com/user-attachments/assets/94212bdd-e83f-4cdf-83b9-3ced881838e5" />
+<img width="1322" height="681" alt="image" src="https://github.com/user-attachments/assets/760137ee-444f-4e97-ad50-5fb051a9acb4" />
+
+### 4. 任务日志
+
+<img width="1322" height="681" alt="image" src="https://github.com/user-attachments/assets/5c7947e8-fda1-469a-b83c-f26d0a095f6e" />
 
 ### 4. 设置页
 
 <div style="display: flex; overflow: scroll">
-  <img width="500" alt="image" src="https://github.com/user-attachments/assets/5a91109f-beb5-43b8-b08b-f10e846eb048" />
-  <img width="500" alt="image" src="https://github.com/user-attachments/assets/960bb3d5-b67e-4aba-be5c-df0f11aad4bd" />
+  <img width="661" alt="image" src="https://github.com/user-attachments/assets/0ba38c41-c419-4f57-93ad-2d0adad002a4" />
+  <img width="661" alt="image" src="https://github.com/user-attachments/assets/7ef97e96-6729-4f73-9abd-7585f146a1e9" />
 </div>
 
 
