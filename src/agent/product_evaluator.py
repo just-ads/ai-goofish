@@ -66,8 +66,8 @@ class ProductEvaluator:
         logger.info(f"开始标题过滤: 目标商品={target_product.get('description', '未知')[:30]}...")
 
         prompt = (
-            f"目标商品描述: {target_product.get('description')}\n"
-            f"当前商品标题: {product.get('商品标题', '')[0:15]}\n\n"
+            f"需求描述: {target_product.get('description')}\n"
+            f"当前商品标题: {product.get('商品标题', '')[0:25]}\n\n"
             "任务：判断该商品标题是否符合目标商品。请给出清晰的分析(analysis)，并返回 'suggestion' 字段 (0-100) 和简短 'reason' (中文)\n\n"
             "示例输出:\n"
             '{"analysis":"标题包含关键字且型号匹配。", "suggestion": 90, "reason":"标题匹配目标商品"}'
@@ -113,7 +113,7 @@ class ProductEvaluator:
             f"上一步对卖家的分析结果：{json.dumps(self.history[-1].get('reply'), ensure_ascii=False)}\n\n"
             f"历史价格数据：{json.dumps(history_prices, ensure_ascii=False) if history_prices else 'null'}\n\n"
             f"当前时间：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
-            f"目标商品描述: {target_product.get('description')}"
+            f"需求描述: {target_product.get('description')}"
             "请结合卖家分析、目标商品描述和以下商品信息分析商品质量、可信度、商品符合度，给出 0-100 的建议度(suggestion)，并提供清晰的分析(analysis)和简短原因(reason, 中文)\n"
             f'商品信息：: {json.dumps(product_info, ensure_ascii=False)}\n\n'
             "示例输出:\n"
