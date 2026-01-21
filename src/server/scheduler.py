@@ -198,12 +198,17 @@ async def run_task(task_id: int, task_name: str):
         logger.info(f"跳过执行原因: 任务已在运行状态，PID={scraper_processes.get(task_id)}")
         return
 
+    running_tasks[task_id] = True
+
     try:
         async with semaphore:
             logger.debug(f"获取信号量: 任务 {task_id} 开始执行")
-            logger.info(f"当前并发任务数: {MAX_CONCURRENT_TASKS - semaphore._value}/{MAX_CONCURRENT_TASKS}")
-            running_tasks[task_id] = True
 
+            if not running_tasks[task_id]:
+                logger.warning(f"任务 '{task_name}' (ID: {task_id}) 已取消, 中断执行")
+                return
+
+            logger.info(f"当前并发任务数: {MAX_CONCURRENT_TASKS - semaphore._value}/{MAX_CONCURRENT_TASKS}")
             logger.info(f"启动子进程执行爬虫: 任务ID={task_id}")
             logs_file = get_logs_file_name(task_id)
             logger.debug(f"日志文件路径: {logs_file}")
