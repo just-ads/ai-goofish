@@ -250,6 +250,24 @@ async def run_task(task_id: int, task_name: str):
         logger.info(f"任务 {task_id} 执行完成，状态已清理，总耗时: {(asyncio.get_event_loop().time() - start_time):.2f}秒")
 
 
+def get_scheduler_status():
+    return {
+        'running': scheduler.running,
+        'jobs': len(scheduler.get_jobs()),
+        'concurrency': semaphore._value,
+        'max_concurrency': MAX_CONCURRENT_TASKS,
+    }
+
+
+def get_task_status(task_id: int):
+    """获取任务状态"""
+    job = scheduler.get_job(f"task_{task_id}")
+    return {
+        'running': is_task_running(task_id),
+        'next_run_time': job.next_run_time
+    }
+
+
 def stop_task(task_id: int):
     """停止正在运行的指定任务"""
     logger.info(f"手动停止任务 {task_id}")

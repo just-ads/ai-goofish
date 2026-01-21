@@ -20,6 +20,7 @@ class Task(TypedDict, total=False):
     max_price: Optional[str]
     personal_only: Optional[bool]
     running: Optional[bool]
+    next_run_time: Optional[str]
 
 class TaskResult(TypedDict, total=False):
     任务名称: str

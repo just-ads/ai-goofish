@@ -11,13 +11,14 @@ from src.api.utils import success_response
 from src.server.scheduler import (
     add_task_to_scheduler,
     update_scheduled_task, run_task, remove_task_from_scheduler,
-    is_task_running, get_all_running_tasks, stop_task
+    is_task_running, get_all_running_tasks, stop_task, get_task_status
 )
 from src.task.task import get_all_tasks, add_task, update_task, get_task, remove_task
 from src.types import Task
 
 # 创建路由器
 router = APIRouter(prefix="/tasks", tags=["tasks"])
+
 
 # --------------- 任务相关接口 ----------------
 @router.get("", dependencies=[Depends(verify_token)])
@@ -27,10 +28,8 @@ async def api_get_tasks():
         tasks = await get_all_tasks()
         for task in tasks:
             task_id = task.get('task_id')
-            if task_id is not None:
-                task['running'] = is_task_running(task_id)
-            else:
-                task['running'] = False
+            task_state = get_task_status(task_id)
+            task.update(task_state)
         return success_response("任务获取成功", tasks)
     except Exception:
         raise HTTPException(status_code=500, detail="读取任务配置时发生错误")
@@ -134,7 +133,6 @@ async def api_get_tasks_status():
 async def api_get_task_status(task_id: int):
     """获取单个任务状态"""
     try:
-        running = is_task_running(task_id)
-        return success_response("任务状态检测", {"running": running})
+        return success_response("任务状态检测", get_task_status(task_id))
     except Exception:
         raise HTTPException(status_code=500, detail="任务状态检测失败")
