@@ -1,7 +1,23 @@
 import random
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, tzinfo
 from typing import Optional
 from apscheduler.triggers.base import BaseTrigger
+
+
+def _normalize_dt(dt: Optional[datetime], tz: Optional[tzinfo]) -> Optional[datetime]:
+    """
+    将 datetime 统一转换到指定时区（用于与 base_trigger 的时区对齐）
+
+    - dt 为 None 时直接返回 None
+    - dt 为 naive 且 tz 不为空时，直接补上 tz
+    - dt 为 aware 且 tz 不为空时，转换到 tz
+    - tz 为 None 时，不做任何时区转换
+    """
+    if dt is None or tz is None:
+        return dt
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=tz)
+    return dt.astimezone(tz)
 
 
 class RandomOffsetTrigger(BaseTrigger):
@@ -54,8 +70,15 @@ class RandomOffsetTrigger(BaseTrigger):
             下一次触发时间，如果任务结束则返回None
         """
 
-        if self._next_fire_time and self._next_fire_time > now:
-            return self._next_fire_time
+        tz = getattr(self.base_trigger, 'timezone', None)
+
+        previous_fire_time = _normalize_dt(previous_fire_time, tz)
+        now = _normalize_dt(now, tz)
+
+        if self._next_fire_time:
+            self._next_fire_time = _normalize_dt(self._next_fire_time, tz)
+            if self._next_fire_time and self._next_fire_time > now:
+                return self._next_fire_time
 
         base_next_time = self.base_trigger.get_next_fire_time(
             previous_fire_time,
@@ -65,6 +88,8 @@ class RandomOffsetTrigger(BaseTrigger):
         if base_next_time is None:
             return None
 
+        base_next_time = _normalize_dt(base_next_time, tz)
+
         random_offset = random.randint(-self.offset_seconds, self.offset_seconds)
 
         next_fire_time = base_next_time + timedelta(seconds=random_offset)
@@ -72,6 +97,7 @@ class RandomOffsetTrigger(BaseTrigger):
         if next_fire_time <= now:
             next_fire_time = base_next_time
 
+        next_fire_time = _normalize_dt(next_fire_time, tz)
         self._next_fire_time = next_fire_time
 
         return next_fire_time
@@ -176,8 +202,16 @@ class RandomTimeRangeTrigger(BaseTrigger):
         """
         计算下一次触发时间
         """
-        if self._next_fire_time and self._next_fire_time > now:
-            return self._next_fire_time
+
+        tz = getattr(self.base_trigger, 'timezone', None)
+
+        previous_fire_time = _normalize_dt(previous_fire_time, tz)
+        now = _normalize_dt(now, tz)
+
+        if self._next_fire_time:
+            self._next_fire_time = _normalize_dt(self._next_fire_time, tz)
+            if self._next_fire_time and self._next_fire_time > now:
+                return self._next_fire_time
 
         base_next_time = self.base_trigger.get_next_fire_time(
             previous_fire_time,
@@ -186,6 +220,8 @@ class RandomTimeRangeTrigger(BaseTrigger):
 
         if base_next_time is None:
             return None
+
+        base_next_time = _normalize_dt(base_next_time, tz)
 
         base_date = base_next_time.replace(
             hour=0, minute=0, second=0, microsecond=0
@@ -201,6 +237,7 @@ class RandomTimeRangeTrigger(BaseTrigger):
         while next_fire_time <= base_next_time:
             next_fire_time += timedelta(days=1)
 
+        next_fire_time = _normalize_dt(next_fire_time, tz)
         self._next_fire_time = next_fire_time
 
         return next_fire_time
@@ -266,6 +303,15 @@ class RandomIntervalTrigger(BaseTrigger):
         """
         计算下一次触发时间
         """
+        tz = None
+        if previous_fire_time and previous_fire_time.tzinfo is not None:
+            tz = previous_fire_time.tzinfo
+        elif now.tzinfo is not None:
+            tz = now.tzinfo
+
+        previous_fire_time = _normalize_dt(previous_fire_time, tz)
+        now = _normalize_dt(now, tz)
+
         if previous_fire_time is None:
             next_time = now
         else:
@@ -275,6 +321,7 @@ class RandomIntervalTrigger(BaseTrigger):
             if next_time <= now:
                 next_time = now + timedelta(seconds=random_interval)
 
+        next_time = _normalize_dt(next_time, tz)
         self._next_fire_time = next_time
         return next_time
 

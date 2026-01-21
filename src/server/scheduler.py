@@ -294,7 +294,7 @@ def add_task_to_scheduler(task: Task):
         logger.debug(f"任务状态: enabled={is_enabled}, cron='{cron_str}'")
         return
 
-    trigger = RandomOffsetTrigger(CronTrigger.from_crontab(cron_str), 900)
+    trigger = RandomOffsetTrigger(CronTrigger.from_crontab(cron_str, timezone='Asia/Shanghai'), 900)
 
     scheduler.add_job(
         run_task,
