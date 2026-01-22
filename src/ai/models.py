@@ -210,7 +210,7 @@ class AIPresetTemplate(BaseModel):
             cls(
                 id='1',
                 name="OpenAI兼容API",
-                description="支持OpenAI格式的API（如OpenAI、Azure OpenAI等）",
+                description="支持OpenAI格式的API",
                 endpoint="https://api.openai.com/v1/chat/completions",
                 api_key='',
                 model="gpt-3.5-turbo",
@@ -261,7 +261,7 @@ class AIPresetTemplate(BaseModel):
             ),
             cls(
                 id='4',
-                name='qwen AI API',
+                name='Qwen AI API',
                 description='阿里通义千问系列模型',
                 endpoint='https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
                 api_key='',
@@ -275,6 +275,43 @@ class AIPresetTemplate(BaseModel):
                     "messages": "{messages}",
                     "stream": False,
                     "enable_thinking": False
+                }
+            ),
+            cls(
+                id='5',
+                name='MIMO API',
+                description='小米系列模型',
+                endpoint='https://api.xiaomimimo.com/v1/chat/completions',
+                api_key='',
+                model='mimo-v2-flash',
+                headers={
+                    "Authorization": "Bearer {key}",
+                    "Content-Type": "application/json"
+                },
+                body={
+                    "model": "{model}",
+                    "messages": "{messages}",
+                    "stream": False,
+                    "thinking": {
+                        "type": "disabled"
+                    }
+                }
+            ),
+            cls(
+                id='6',
+                name='Gemini API',
+                description='Google Gemini 系列模型',
+                endpoint='https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
+                api_key='',
+                model='gemini-3-flash-preview',
+                headers={
+                    "Authorization": "Bearer {key}",
+                    "Content-Type": "application/json"
+                },
+                body={
+                    "model": "{model}",
+                    "messages": "{messages}",
+                    "stream": False,
                 }
             )
         ]
