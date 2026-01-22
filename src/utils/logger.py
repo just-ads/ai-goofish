@@ -22,16 +22,27 @@ class Logger:
         else:
             self.debug_mode = debug_mode
 
-    def _log(self, level: str, message: str, *args, **kwargs):
-        """内部日志记录方法"""
+    @staticmethod
+    def _format_message(level: str, message: str, *args, **kwargs):
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         formatted_message = message.format(*args, **kwargs) if args or kwargs else message
+        return f"[{timestamp}] [{level}] {formatted_message}"
 
-        # DEBUG级别日志只在DEBUG模式下输出
+    def _log(self, level: str, message: str, *args, **kwargs):
         if level == LOG_LEVEL_DEBUG and not self.debug_mode:
             return
 
-        print(f"[{timestamp}] [{level}] {formatted_message}")
+        print(self._format_message(level, message, *args, **kwargs))
+
+    def _log_file(self, file: str, level: str, message: str, *args, **kwargs):
+        if level == LOG_LEVEL_DEBUG and not self.debug_mode:
+            return
+        st = self._format_message(level, message, *args, **kwargs)
+        try:
+            with open(file, 'a', encoding='utf-8') as f:
+                f.write(f"{st}\n")
+        except Exception:
+            pass
 
     def info(self, message: str, *args, **kwargs):
         """记录提示信息"""
@@ -48,6 +59,18 @@ class Logger:
     def debug(self, message: str, *args, **kwargs):
         """记录调试信息"""
         self._log(LOG_LEVEL_DEBUG, message, *args, **kwargs)
+
+    def info_file(self, file: str, message: str, *args, **kwargs):
+        self._log_file(file, LOG_LEVEL_INFO, message, *args, **kwargs)
+
+    def warning_file(self, file: str, message: str, *args, **kwargs):
+        self._log_file(file, LOG_LEVEL_WARNING, message, *args, **kwargs)
+
+    def error_file(self, file: str, message: str, *args, **kwargs):
+        self._log_file(file, LOG_LEVEL_ERROR, message, *args, **kwargs)
+
+    def debug_file(self, file: str, message: str, *args, **kwargs):
+        self._log_file(file, LOG_LEVEL_DEBUG, message, *args, **kwargs)
 
 
 # 创建全局日志记录器实例

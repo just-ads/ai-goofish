@@ -35,16 +35,6 @@ def _is_process_alive(pid: Optional[int]) -> bool:
         return False
 
 
-async def _wait_for_process_termination(pid: int, timeout: float = 5.0) -> bool:
-    """等待进程终止，返回是否成功终止"""
-    start_time = asyncio.get_event_loop().time()
-    while asyncio.get_event_loop().time() - start_time < timeout:
-        if not _is_process_alive(pid):
-            return True
-        await asyncio.sleep(0.1)
-    return False
-
-
 def terminate_process(task_id: int) -> bool:
     """终止指定 task_id 的子进程；返回值表示**此前**该任务是否处于运行状态。"""
     pid = scraper_processes.get(task_id)
@@ -278,6 +268,8 @@ def stop_task(task_id: int):
 
     if was_running:
         logger.info(f"任务 {task_id} 已成功停止")
+        logs_file = get_logs_file_name(task_id)
+        logger.warning_file(logs_file, f"任务已被手动中止")
     else:
         logger.warning(f"任务 {task_id} 原本未在运行状态")
 
