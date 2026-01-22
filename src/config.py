@@ -4,7 +4,7 @@
 
 import json
 import os
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional, ClassVar
 
 from src.env import APP_CONFIG_FILE
 from src.types import AppConfigModel
@@ -14,16 +14,28 @@ from src.utils.logger import logger
 class AppConfig:
     """应用配置类"""
 
-    def __init__(self, config_file: str = APP_CONFIG_FILE):
+    _instance: ClassVar[Optional['AppConfig']] = None
+    _initialized: ClassVar[bool] = False
+
+    def __new__(cls, config_file: str = APP_CONFIG_FILE):
+        """
+        创建单例实例
+        """
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance.config_file = config_file
+            cls._instance.config = cls._instance._get_default_config()
+
+        return cls._instance
+
+    def __init__(self):
         """
         初始化配置
-
-        Args:
-            config_file: 配置文件路径
         """
-        self.config_file = config_file
-        self.config: AppConfigModel = self._get_default_config()
-        self.load_config()
+        # 确保初始化只执行一次
+        if not self.__class__._initialized:
+            self.load_config()
+            self.__class__._initialized = True
 
     @staticmethod
     def _get_default_config() -> AppConfigModel:
@@ -272,25 +284,21 @@ class AppConfig:
         return dict(self.config.copy())
 
 
-# 全局配置实例
-_config_instance: AppConfig = AppConfig()
-
-
 def get_config_instance() -> AppConfig:
     """获取全局配置实例"""
-    return _config_instance
+    return AppConfig()
 
 
 def reload_config() -> bool:
     """重新加载配置"""
-    return _config_instance.load_config()
+    return AppConfig().load_config()
 
 
 def update_global_config(updates: AppConfigModel) -> bool:
     """更新全局配置"""
-    return _config_instance.update_config(updates)
+    return AppConfig().update_config(updates)
 
 
 def set_global_config(config: AppConfigModel) -> bool:
     """全量设置全局配置"""
-    return _config_instance.set_config(config)
+    return AppConfig().set_config(config)
