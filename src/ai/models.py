@@ -221,7 +221,8 @@ class AIPresetTemplate(BaseModel):
                 body={
                     "model": "{model}",
                     "messages": "{messages}",
-                    "response_format": {"type": "json_object"}
+                    "response_format": {"type": "json_object"},
+                    "stream": False
                 }
             ),
             cls(
@@ -254,7 +255,26 @@ class AIPresetTemplate(BaseModel):
                 },
                 body={
                     "model": "{model}",
-                    "messages": "{messages}"
+                    "messages": "{messages}",
+                    "stream": False
+                }
+            ),
+            cls(
+                id='4',
+                name='qwen AI API',
+                description='阿里通义千问系列模型',
+                endpoint='https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
+                api_key='',
+                model='qwen3-max',
+                headers={
+                    "Authorization": "Bearer {key}",
+                    "Content-Type": "application/json"
+                },
+                body={
+                    "model": "{model}",
+                    "messages": "{messages}",
+                    "stream": False,
+                    "enable_thinking": False
                 }
             )
         ]
