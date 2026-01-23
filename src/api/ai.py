@@ -18,7 +18,7 @@ from src.ai.config import (
 )
 from src.api.auth import verify_token
 from src.api.utils import success_response
-from src.utils.secrecy import secrecy_key, is_secrecy_key
+from src.utils.secrecy import secrecy_value, is_secrecy_value
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 
@@ -59,7 +59,7 @@ async def api_get_ais():
             if config:
                 provider_dict = config.model_dump()
                 if 'api_key' in provider_dict and provider_dict['api_key']:
-                    provider_dict['api_key'] = secrecy_key(provider_dict['api_key'])
+                    provider_dict['api_key'] = secrecy_value(provider_dict['api_key'])
                 ai_list.append(provider_dict)
 
         return success_response("获取成功", ai_list)
@@ -77,7 +77,7 @@ async def api_create_ai(config: AICreateModel):
 
         config = config.model_dump()
         if 'api_key' in config and config['api_key']:
-            config['api_key'] = secrecy_key(config['api_key'])
+            config['api_key'] = secrecy_value(config['api_key'])
 
         return success_response("创建成功", config)
     except HTTPException:
@@ -115,7 +115,7 @@ async def api_get_ai(id: str):
 
         config = config.model_dump()
         if 'api_key' in config and config['api_key']:
-            config['api_key'] = secrecy_key(config['api_key'])
+            config['api_key'] = secrecy_value(config['api_key'])
 
         return success_response("获取成功", config)
     except HTTPException:
@@ -131,14 +131,14 @@ async def api_update_provider(id: str, config: AIUpdateModel):
         config = await update_ai_config(
             id,
             config,
-            exclude={"api_key"} if is_secrecy_key(config.api_key) else None
+            exclude={"api_key"} if is_secrecy_value(config.api_key) else None
         )
         if not config:
             raise HTTPException(status_code=500, detail="更新AI配置失败")
 
         config = config.model_dump()
         if 'api_key' in config and config['api_key']:
-            config['api_key'] = secrecy_key(config['api_key'])
+            config['api_key'] = secrecy_value(config['api_key'])
 
         return success_response("更新成功", config)
     except HTTPException:

@@ -80,7 +80,6 @@ async def add_notifier_config(notifier_config: Dict) -> Dict:
     data_str = await notifier_file_op.read()
     data = json.loads(data_str) if data_str else []
 
-    # 获取最大ID
     max_id = 0
     if data:
         try:
@@ -99,7 +98,7 @@ async def add_notifier_config(notifier_config: Dict) -> Dict:
     return notifier_config
 
 
-async def update_notifier_config(notifier_id: str, notifier_update: Dict) -> Dict:
+async def update_notifier_config(notifier_id: str, notifier_update: Dict, exclude: set[str] = None) -> Dict:
     """
     更新notifier.config文件中的Notifier配置
 
@@ -115,14 +114,17 @@ async def update_notifier_config(notifier_id: str, notifier_update: Dict) -> Dic
     data_str = await notifier_file_op.read()
     data = json.loads(data_str) if data_str else []
 
-    # 查找要更新的notifier
     notifier_index = next((i for i, item in enumerate(data) if item.get('id') == notifier_id), -1)
 
     if notifier_index == -1:
         raise ValueError(f"Notifier ID {notifier_id} 不存在")
 
-    notifier = data[notifier_index]
+    exclude = ({"id"} | exclude) if exclude else {"id"}
 
+    for exclude_item in exclude:
+        notifier_update.pop(exclude_item, None)
+
+    notifier = data[notifier_index]
     notifier.update(notifier_update)
 
     await notifier_file_op.write(json.dumps(data, ensure_ascii=False, indent=2))

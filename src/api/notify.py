@@ -4,8 +4,6 @@ Notifier相关路由模块
 """
 from fastapi import APIRouter, HTTPException, Depends
 
-from urllib.parse import urlsplit, urlunsplit, parse_qsl, urlencode
-
 from src.api.auth import verify_token, success_response
 
 from src.notify.config import (
@@ -14,21 +12,23 @@ from src.notify.config import (
     remove_notifier_config
 )
 from src.notify.notify_manger import NotificationManager
-from src.notify.template import get_notifier_template
+from src.notify.template import get_notifier_templates
+from src.utils.secrecy import secrecy_value, is_secrecy_value
 
 # 创建路由器
 router = APIRouter(prefix="/notifier", tags=["notifier"])
 
 
-def _mask_wecom_webhook_url(url: str) -> str:
-    """企业微信 webhook URL 里的 key 属于敏感信息。"""
-    try:
-        parts = urlsplit(url)
-        query = [(k, "***" if k == "key" else v) for k, v in parse_qsl(parts.query, keep_blank_values=True)]
-        masked_query = urlencode(query)
-        return urlunsplit((parts.scheme, parts.netloc, parts.path, masked_query, parts.fragment))
-    except Exception:
-        return url
+def _mask_config(config: dict, secrecy_keys: list[str]) -> dict:
+    for key in secrecy_keys:
+        config[key] = secrecy_value(config[key])
+    return config
+
+
+def _get_notifier_secrecy_keys(type: str) -> list:
+    templates = get_notifier_templates()
+    template = next((it for it in templates if it['type'] == type), {})
+    return [key for key, value in template.get('template', {}).items() if value.get('type', '') == 'password']
 
 
 # --------------- Notifier模板接口 ----------------
@@ -37,7 +37,7 @@ def _mask_wecom_webhook_url(url: str) -> str:
 async def api_get_notifier_templates():
     """获取Notifier预设模板列表"""
     try:
-        templates = get_notifier_template()
+        templates = get_notifier_templates()
         return success_response('获取成功', templates)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取模板失败: {str(e)}")
@@ -49,14 +49,11 @@ async def api_get_notifiers():
     """获取所有Notifier配置"""
     try:
         notifiers = await get_all_notifiers()
-        # 转换为字典列表
+        templates = get_notifier_templates()
         for notifier in notifiers:
-            # 隐藏敏感信息
-            if 'token' in notifier and notifier['token']:
-                notifier['token'] = '***' + notifier['token'][-4:] if len(notifier['token']) > 4 else '***'
-            if notifier.get('type') == 'wecom' and notifier.get('url'):
-                notifier['url'] = _mask_wecom_webhook_url(str(notifier['url']))
-
+            template = next(it for it in templates if it['type'] == notifier['type'])
+            secrecy_keys = [key for key, value in template['template'].items() if value['type'] == 'password']
+            _mask_config(notifier, secrecy_keys)
 
         return success_response("获取成功", notifiers)
     except Exception as e:
@@ -67,16 +64,13 @@ async def api_get_notifiers():
 async def api_create_notifier(config: dict):
     """创建Notifier配置"""
     try:
-        result = await add_notifier_config(config)
-        if not result:
+        notifier = await add_notifier_config(config)
+        if not notifier:
             raise HTTPException(status_code=500, detail="保存Notifier配置失败")
+        secrecy_keys = _get_notifier_secrecy_keys(notifier.get('type'))
+        notifier = _mask_config(notifier, secrecy_keys)
 
-        if 'token' in result and result['token']:
-            result['token'] = '***' + result['token'][-4:] if len(result['token']) > 4 else '***'
-        if result.get('type') == 'wecom' and result.get('url'):
-            result['url'] = _mask_wecom_webhook_url(str(result['url']))
-
-        return success_response("创建成功", result)
+        return success_response("创建成功", notifier)
 
     except HTTPException:
         raise
@@ -92,10 +86,8 @@ async def api_get_notifier(notifier_id: str):
         if not notifier:
             raise HTTPException(status_code=404, detail=f"Notifier '{notifier_id}' 未找到")
 
-        if 'token' in notifier and notifier['token']:
-            notifier['token'] = '***' + notifier['token'][-4:] if len(notifier['token']) > 4 else '***'
-        if notifier.get('type') == 'wecom' and notifier.get('url'):
-            notifier['url'] = _mask_wecom_webhook_url(str(notifier['url']))
+        secrecy_keys = _get_notifier_secrecy_keys(notifier.get('type'))
+        notifier = _mask_config(notifier, secrecy_keys)
 
         return success_response("获取成功", notifier)
 
@@ -125,15 +117,18 @@ async def api_notifier_test(config: dict):
 async def api_update_notifier(notifier_id: str, config: dict):
     """更新Notifier配置"""
     try:
-        # 更新配置
+        secrecy_keys = _get_notifier_secrecy_keys(config.get('type'))
+
+        for key in secrecy_keys:
+            value = config.get(key, None)
+            if value and is_secrecy_value(value):
+                config.pop(key)
+
         notifier = await update_notifier_config(notifier_id, config)
         if not notifier:
             raise HTTPException(status_code=500, detail="更新Notifier配置失败")
 
-        if 'token' in notifier and notifier['token']:
-            notifier['token'] = '***' + notifier['token'][-4:] if len(notifier['token']) > 4 else '***'
-        if notifier.get('type') == 'wecom' and notifier.get('url'):
-            notifier['url'] = _mask_wecom_webhook_url(str(notifier['url']))
+        notifier = _mask_config(notifier, secrecy_keys)
 
         return success_response("更新成功", notifier)
 
@@ -167,17 +162,14 @@ async def api_delete_notifier(notifier_id: str):
 async def api_test_notifier(notifier_id: str):
     """测试已保存的Notifier连接"""
     try:
-        # 获取notifier配置
         notifier_config = await get_notifier_config(notifier_id)
         if not notifier_config:
             raise HTTPException(status_code=404, detail=f"Notifier '{notifier_id}' 未找到")
 
-        # 创建notifier实例
         notifier = NotificationManager.create_notifier(notifier_config)
         if not notifier:
             raise HTTPException(status_code=500, detail="创建Notifier实例失败")
 
-        # 测试连接
         notifier.test()
 
         return success_response('测试成功')

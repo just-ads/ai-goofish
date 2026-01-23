@@ -32,7 +32,7 @@ class NotificationManager:
             return NtfyNotifier(config)
         if notif_type == 'gotify':
             return GotifyNotifier(config)
-        if notif_type == 'webchat':
+        if notif_type == 'wechat':
             return WechatWebhookNotifier(config)
         return None
 

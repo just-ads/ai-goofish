@@ -20,7 +20,7 @@ class GotifyConfig(TypedDict):
 class WechatWebhookConfig(TypedDict):
     """企业微信“消息推送（原群机器人）”Webhook 配置"""
 
-    type: Literal["wecom"]
+    type: Literal["wechat"]
     url: str
     msgtype: NotRequired[Literal["markdown", "text"]]
     mentioned_list: NotRequired[List[str]]

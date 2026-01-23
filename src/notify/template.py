@@ -1,4 +1,4 @@
-def get_notifier_template():
+def get_notifier_templates():
     return [
         {
             'id': '0',

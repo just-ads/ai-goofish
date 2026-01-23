@@ -32,7 +32,7 @@ class WechatWebhookNotifier:
 
     def send(self, task_result: TaskResult):
         try:
-            logger.info("推送 [WeCom] 通知，地址为：{}", self.webhook_url)
+            logger.info("推送 [Wechat] 通知，地址为：{}", self.webhook_url)
 
             product = task_result["商品信息"]
             analysis = task_result.get("分析结果", {}) or {}
@@ -67,7 +67,7 @@ class WechatWebhookNotifier:
             self._send_markdown(content)
 
         except Exception as e:
-            logger.error("[WeCom] 通知失败: {}", e)
+            logger.error("[Wechat] 通知失败: {}", e)
 
     def _send_text(self, content: str):
         payload: dict = {
@@ -95,7 +95,7 @@ class WechatWebhookNotifier:
 
     def _post(self, payload: dict):
         if not self.webhook_url:
-            raise ValueError("WeCom webhook url 不能为空")
+            raise ValueError("Wechat webhook url 不能为空")
 
         resp = httpx.post(self.webhook_url, json=payload, timeout=30)
 
@@ -103,10 +103,10 @@ class WechatWebhookNotifier:
         try:
             data = resp.json()
         except Exception:
-            logger.error("[WeCom] 响应非 JSON: status={}, body={}", resp.status_code, resp.text[:200])
+            logger.error("[Wechat] 响应非 JSON: status={}, body={}", resp.status_code, resp.text[:200])
             return
 
         errcode = data.get("errcode")
         if errcode not in (0, "0", None):
-            logger.error("[WeCom] 推送失败: errcode={}, errmsg={}", errcode, data.get("errmsg"))
+            logger.error("[Wechat] 推送失败: errcode={}, errmsg={}", errcode, data.get("errmsg"))
 
