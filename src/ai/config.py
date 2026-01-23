@@ -124,7 +124,7 @@ async def add_ai_config(ai_config: AICreateModel) -> AIConfig:
     return AIConfig(**ai_dict)
 
 
-async def update_ai_config(ai_id: str, ai_update: AIUpdateModel) -> AIConfig:
+async def update_ai_config(ai_id: str, ai_update: AIUpdateModel, exclude: set[str] = None) -> AIConfig:
     """更新 ai.config 文件中的 AI 配置。"""
 
     file_op = FileOperator(AI_CONFIG_FILE)
@@ -138,8 +138,10 @@ async def update_ai_config(ai_id: str, ai_update: AIUpdateModel) -> AIConfig:
     if ai_index == -1:
         raise ValueError(f"AI ID {ai_id} 不存在")
 
+    exclude = ({"id"} | exclude) if exclude else {"id"}
+
     ai_dict = data[ai_index]
-    ai_dict.update(ai_update.model_dump(exclude={"id"}))
+    ai_dict.update(ai_update.model_dump(exclude=exclude))
 
     await file_op.write(json.dumps(data, ensure_ascii=False, indent=2))
 

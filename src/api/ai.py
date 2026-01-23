@@ -18,6 +18,7 @@ from src.ai.config import (
 )
 from src.api.auth import verify_token
 from src.api.utils import success_response
+from src.utils.secrecy import secrecy_key, is_secrecy_key
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 
@@ -58,7 +59,7 @@ async def api_get_ais():
             if config:
                 provider_dict = config.model_dump()
                 if 'api_key' in provider_dict and provider_dict['api_key']:
-                    provider_dict['api_key'] = '***' + provider_dict['api_key'][-4:] if len(provider_dict['api_key']) > 4 else '***'
+                    provider_dict['api_key'] = secrecy_key(provider_dict['api_key'])
                 ai_list.append(provider_dict)
 
         return success_response("获取成功", ai_list)
@@ -76,7 +77,7 @@ async def api_create_ai(config: AICreateModel):
 
         config = config.model_dump()
         if 'api_key' in config and config['api_key']:
-            config['api_key'] = '***' + config['api_key'][-4:] if len(config['api_key']) > 4 else '***'
+            config['api_key'] = secrecy_key(config['api_key'])
 
         return success_response("创建成功", config)
     except HTTPException:
@@ -114,7 +115,7 @@ async def api_get_ai(id: str):
 
         config = config.model_dump()
         if 'api_key' in config and config['api_key']:
-            config['api_key'] = '***' + config['api_key'][-4:] if len(config['api_key']) > 4 else '***'
+            config['api_key'] = secrecy_key(config['api_key'])
 
         return success_response("获取成功", config)
     except HTTPException:
@@ -127,13 +128,17 @@ async def api_get_ai(id: str):
 async def api_update_provider(id: str, config: AIUpdateModel):
     """更新 AI 配置"""
     try:
-        config = await update_ai_config(id, config)
+        config = await update_ai_config(
+            id,
+            config,
+            exclude={"api_key"} if is_secrecy_key(config.api_key) else None
+        )
         if not config:
             raise HTTPException(status_code=500, detail="更新AI配置失败")
 
         config = config.model_dump()
         if 'api_key' in config and config['api_key']:
-            config['api_key'] = '***' + config['api_key'][-4:] if len(config['api_key']) > 4 else '***'
+            config['api_key'] = secrecy_key(config['api_key'])
 
         return success_response("更新成功", config)
     except HTTPException:
@@ -171,12 +176,14 @@ async def api_test_provider(id: str):
             raise HTTPException(status_code=404, detail=f"AI '{id}' 未找到")
 
         client = AIClient(config)
-        messages = await client.ask(messages=[{"role": "user", "content": "Hello."}])
+        response = await client.ask(messages=[{"role": "user", "content": "Hello."}], max_retries=2)
+
+        if not response.success:
+            raise HTTPException(status_code=500, detail=response.error)
 
         return success_response('测试成功', {
-            "provider_id": id,
             "provider_name": config.name,
-            "response": f'{messages.content}'
+            "response": f'{response.content}'
         })
     except HTTPException:
         raise
@@ -199,10 +206,13 @@ async def api_chat_with_provider(id: str, request: ChatRequest):
             raise HTTPException(status_code=404, detail=f"AI '{id}' 未找到")
 
         client = AIClient(config)
-        response = client.ask(
+        response = await client.ask(
             messages=request.messages,
             parameters=request.parameters
         )
+
+        if not response.success:
+            raise HTTPException(status_code=500, detail=response.error)
 
         return success_response('对话成功', {
             "provider_id": id,
