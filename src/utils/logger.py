@@ -26,6 +26,7 @@ class Logger:
     def _format_message(level: str, message: str, *args, **kwargs):
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         formatted_message = message.format(*args, **kwargs) if args or kwargs else message
+        formatted_message = formatted_message.replace('\n', '')
         return f"[{timestamp}] [{level}] {formatted_message}"
 
     def _log(self, level: str, message: str, *args, **kwargs):
