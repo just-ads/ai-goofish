@@ -197,6 +197,7 @@ class AIPresetTemplate(BaseModel):
     id: str = Field(..., description="模板ID")
     name: str = Field(..., description="模板名称")
     description: str = Field(..., description="模板描述")
+    api_key_domin: str = Field(..., description="获取api_key的地址")
     endpoint: str = Field(..., description="API端点示例")
     api_key: str = Field(..., description="API密钥")
     model: str = Field(..., description="模型示例")
@@ -209,26 +210,9 @@ class AIPresetTemplate(BaseModel):
         return [
             cls(
                 id='1',
-                name="OpenAI兼容API",
-                description="支持OpenAI格式的API",
-                endpoint="https://api.openai.com/v1/chat/completions",
-                api_key='',
-                model="gpt-3.5-turbo",
-                headers={
-                    "Authorization": "Bearer {key}",
-                    "Content-Type": "application/json"
-                },
-                body={
-                    "model": "{model}",
-                    "messages": "{messages}",
-                    "response_format": {"type": "json_object"},
-                    "stream": False
-                }
-            ),
-            cls(
-                id='2',
                 name="DeepSeek API",
                 description="DeepSeek聊天API",
+                api_key_domin='https://platform.deepseek.com/api_keys',
                 endpoint="https://api.deepseek.com/chat/completions",
                 api_key='',
                 model="deepseek-chat",
@@ -243,9 +227,10 @@ class AIPresetTemplate(BaseModel):
                 }
             ),
             cls(
-                id='3',
+                id='2',
                 name="智谱AI API",
                 description="智谱AI GLM系列模型",
+                api_key_domin='https://bigmodel.cn/usercenter/proj-mgmt/apikeys',
                 endpoint="https://open.bigmodel.cn/api/paas/v4/chat/completions",
                 api_key='',
                 model="glm-4",
@@ -260,9 +245,10 @@ class AIPresetTemplate(BaseModel):
                 }
             ),
             cls(
-                id='4',
+                id='3',
                 name='Qwen AI API',
                 description='阿里通义千问系列模型',
+                api_key_domin='https://bailian.console.aliyun.com/cn-beijing/?tab=model#/api-key',
                 endpoint='https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
                 api_key='',
                 model='qwen3-max',
@@ -278,9 +264,10 @@ class AIPresetTemplate(BaseModel):
                 }
             ),
             cls(
-                id='5',
+                id='4',
                 name='MIMO API',
                 description='小米系列模型',
+                api_key_domin='https://platform.xiaomimimo.com/#/console/api-keys',
                 endpoint='https://api.xiaomimimo.com/v1/chat/completions',
                 api_key='',
                 model='mimo-v2-flash',
@@ -298,9 +285,10 @@ class AIPresetTemplate(BaseModel):
                 }
             ),
             cls(
-                id='6',
+                id='5',
                 name='Gemini API',
                 description='Google Gemini 系列模型',
+                api_key_domin='https://aistudio.google.com/api-keys',
                 endpoint='https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
                 api_key='',
                 model='gemini-3-flash-preview',
@@ -313,5 +301,60 @@ class AIPresetTemplate(BaseModel):
                     "messages": "{messages}",
                     "stream": False,
                 }
-            )
+            ),
+            cls(
+                id='6',
+                name='豆包 API',
+                description='豆包系列模型',
+                api_key_domin='https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey',
+                endpoint='https://ark.cn-beijing.volces.com/api/v3/responses',
+                api_key='',
+                model='doubao-seed-1-8-251228',
+                headers={
+                    "Authorization": "Bearer {key}",
+                    "Content-Type": "application/json"
+                },
+                body={
+                    "model": "{model}",
+                    "input": "{messages}",
+                    "stream": False,
+                }
+            ),
+            cls(
+                id='7',
+                name='OpenRouter API',
+                description='OpenRoute系列模型',
+                api_key_domin='https://openrouter.ai/settings/keys',
+                endpoint='https://openrouter.ai/api/v1/chat/completions',
+                api_key='',
+                model='openai/gpt-5.2',
+                headers={
+                    "Authorization": "Bearer {key}",
+                    "Content-Type": "application/json"
+                },
+                body={
+                    "model": "{model}",
+                    "messages": "{messages}",
+                    "stream": False,
+                }
+            ),
+            cls(
+                id='8',
+                name="OpenAI API",
+                description="OpenAI 和 任何兼容 OpenAI 格式的API",
+                api_key_domin='https://platform.openai.com/api-keys',
+                endpoint="https://api.openai.com/v1/chat/completions",
+                api_key='',
+                model="gpt-3.5-turbo",
+                headers={
+                    "Authorization": "Bearer {key}",
+                    "Content-Type": "application/json"
+                },
+                body={
+                    "model": "{model}",
+                    "messages": "{messages}",
+                    "response_format": {"type": "json_object"},
+                    "stream": False
+                }
+            ),
         ]

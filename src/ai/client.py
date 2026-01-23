@@ -72,11 +72,11 @@ class AIClient:
         # 转换消息格式
         formatted_messages = self._format_messages(messages)
 
-        # 准备请求参数
         request_params = parameters or {}
 
-        # 发送请求（带重试）
         start_time = time.time()
+
+        error = None
 
         for attempt in range(max_retries):
             try:
@@ -97,14 +97,14 @@ class AIClient:
                     )
                     return response
                 else:
+                    error = response.error
                     logger.warning(
                         f"AI请求失败: {self.config.name}, "
                         f"错误: {response.error}, 尝试次数: {attempt + 1}"
                     )
 
-                    # 如果不是最后一次尝试，等待后重试
                     if attempt < max_retries - 1:
-                        wait_time = 2 ** attempt  # 指数退避
+                        wait_time = 2 ** attempt
                         logger.info(f"等待 {wait_time} 秒后重试...")
                         await asyncio.sleep(wait_time)
 
@@ -120,7 +120,7 @@ class AIClient:
                     await asyncio.sleep(wait_time)
 
         return AIResponse.error_response(
-            f"AI请求失败，已达到最大重试次数: {max_retries}",
+            error or f"AI请求失败，已达到最大重试次数: {max_retries}",
             self.config.id
         )
 

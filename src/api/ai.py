@@ -33,6 +33,7 @@ async def api_get_ai_templates():
                 "id": template.id,
                 "name": template.name,
                 "description": template.description,
+                "api_key_domin": template.api_key_domin,
                 "endpoint": template.endpoint,
                 "api_key": template.api_key,
                 "model": template.model,
@@ -88,10 +89,14 @@ async def api_create_ai(config: AICreateModel):
 async def api_ai_test(config: AICreateModel):
     try:
         client = AIClient(AIConfig(**config.model_dump(), id='test'))
-        messages = await client.ask(messages=[{"role": "user", "content": "Hello."}])
+        response = await client.ask(messages=[{"role": "user", "content": "Hello."}], max_retries=2)
+
+        if not response.success:
+            raise HTTPException(status_code=500, detail=response.error)
+
         return success_response('测试成功', {
             "provider_name": config.name,
-            "response": f'{messages.content}'
+            "response": f'{response.content}'
         })
     except HTTPException:
         raise
