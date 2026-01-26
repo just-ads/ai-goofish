@@ -1,5 +1,6 @@
 import os
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 LOG_LEVEL_INFO = "提示"
 LOG_LEVEL_WARNING = "警告"
@@ -22,9 +23,10 @@ class Logger:
         else:
             self.debug_mode = debug_mode
 
-    @staticmethod
-    def _format_message(level: str, message: str, *args, **kwargs):
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        self._zone_info = ZoneInfo("Asia/Shanghai")
+
+    def _format_message(self, level: str, message: str, *args, **kwargs):
+        timestamp = datetime.now(self._zone_info).strftime("%Y-%m-%d %H:%M:%S")
         formatted_message = message.format(*args, **kwargs) if args or kwargs else message
         formatted_message = formatted_message.replace('\n', '')
         return f"[{timestamp}] [{level}] {formatted_message}"
