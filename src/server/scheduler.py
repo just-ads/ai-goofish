@@ -3,7 +3,6 @@ import os
 import signal
 import subprocess
 import sys
-from datetime import datetime
 from typing import Optional
 
 from apscheduler.jobstores.base import JobLookupError
@@ -11,7 +10,6 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
 from src.env import MAX_CONCURRENT_TASKS
-from src.server.trigger import RandomOffsetTrigger
 from src.task.logs import get_logs_file_name
 from src.task.task import get_all_tasks, Task
 from src.utils.logger import logger
@@ -307,7 +305,9 @@ def add_task_to_scheduler(task: Task):
         logger.debug(f"任务状态: enabled={is_enabled}, cron='{cron_str}'")
         return
 
-    trigger = RandomOffsetTrigger(CronTrigger.from_crontab(cron_str, timezone='Asia/Shanghai'), 900)
+    trigger = CronTrigger.from_crontab(cron_str, timezone='Asia/Shanghai')
+
+    trigger.jitter = 30
 
     scheduler.add_job(
         run_task,
@@ -321,7 +321,7 @@ def add_task_to_scheduler(task: Task):
     )
 
     logger.info(f"已为任务 '{task_name}' (ID: {task_id}) 添加定时规则: '{cron_str}'")
-    logger.info(f"触发器配置: RandomOffsetTrigger(基础cron='{cron_str}', 随机偏移=1800秒)")
+    logger.info(f"触发器配置: RandomOffsetTrigger(基础cron='{cron_str}', 随机偏移=30秒)")
 
     job = scheduler.get_job(f"task_{task_id}")
     if job:
