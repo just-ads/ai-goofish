@@ -321,7 +321,7 @@ def add_task_to_scheduler(task: Task):
     )
 
     logger.info(f"已为任务 '{task_name}' (ID: {task_id}) 添加定时规则: '{cron_str}'")
-    logger.info(f"触发器配置: RandomOffsetTrigger(基础cron='{cron_str}', 随机偏移=30秒)")
+    logger.info(f"触发器配置: {cron_str}, 随机偏移=30秒)")
 
     job = scheduler.get_job(f"task_{task_id}")
     if job:
