@@ -238,13 +238,25 @@ class GoofishSpider:
         last_processed_count = await self.get_history()
 
         async with async_playwright() as p:
+            # 尽量模拟真实浏览器，不要使用 js 打补丁的方式
             self.browser = await p.chromium.launch(
                 headless=self.browser_headless,
                 channel=self.browser_channel
             )
+            version = self.browser.version
+            # 使用真实版本号
+            user_agent = f'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{version.split('.')[0]} Safari/537.36'
             self.browser_context = await self.browser.new_context(
                 storage_state=self.state_file,
-                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"
+                viewport={"width": 1920, "height": 957},
+                screen={'width': 1920, 'height': 1080},
+                device_scale_factor=1.0,
+                user_agent=user_agent,
+                is_mobile=False,
+                has_touch=False,
+                locale='zh-CN',
+                timezone_id='Asia/Shanghai',
+                permissions=["notifications"]
             )
 
             page = await self.browser_context.new_page()
