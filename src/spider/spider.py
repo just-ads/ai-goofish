@@ -402,8 +402,9 @@ async def main(debug: bool = False):
     product_evaluator = None
     if config.is_evaluator_enabled:
         text_ai_config = await get_ai_config(config.evaluator_text_ai)
+        image_ai_config = await get_ai_config(config.evaluator_image_ai)
         if text_ai_config:
-            product_evaluator = ProductEvaluator.create_from_config(text_ai_config)
+            product_evaluator = ProductEvaluator.create_from_config(text_ai_config, image_ai_config)
 
     coroutines = []
     for task in active_tasks:
