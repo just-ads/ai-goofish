@@ -4,9 +4,6 @@
 
 该方式不需要 access_token，仅需向 webhook URL POST JSON。
 """
-
-from __future__ import annotations
-
 import httpx
 
 from src.types import TaskResult, WechatWebhookConfig

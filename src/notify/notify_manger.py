@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from typing import Any, List, Dict
 
 from src.notify.gotify import GotifyNotifier
@@ -36,6 +34,6 @@ class NotificationManager:
             return WechatWebhookNotifier(config)
         return None
 
-    @staticmethod
-    def create_from_configs(configs: List[Dict]) -> NotificationManager:
-        return NotificationManager(configs)
+    @classmethod
+    def create_from_configs(cls, configs: List[Dict]) -> NotificationManager:
+        return cls(configs)
