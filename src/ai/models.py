@@ -7,15 +7,29 @@ credentials, request templates, etc.).
 
 import json
 import re
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Union
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator, validator
+
+
+MessageContent = Union[str, List[Dict[str, Any]]]
 
 
 class AIMessage(BaseModel):
     """AI消息模型"""
     role: str = Field(..., description="消息角色：system/user/assistant")
-    content: str = Field(..., description="消息内容")
+    content: MessageContent = Field(..., description="消息内容（支持纯文本或多模态内容块）")
+
+    @field_validator("content")
+    @classmethod
+    def validate_content(cls, v):
+        if isinstance(v, list):
+            for item in v:
+                if not isinstance(item, dict):
+                    raise ValueError("多模态内容块必须是字典")
+                if "type" not in item:
+                    raise ValueError("多模态内容块必须包含type字段")
+        return v
 
     @validator('role')
     def validate_role(cls, v):
@@ -81,7 +95,7 @@ class AIConfig(BaseModel):
         logger.debug(f"Rendered headers: {rendered_headers}")
         return rendered_headers
 
-    def get_body(self, messages: List[Dict[str, str]], context: Optional[Dict[str, Any]] = None) -> str:
+    def get_body(self, messages: List[Dict[str, Any]], context: Optional[Dict[str, Any]] = None) -> str:
         """获取渲染后的请求体"""
         from src.utils.logger import logger
 

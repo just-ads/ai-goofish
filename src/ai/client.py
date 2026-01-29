@@ -52,7 +52,7 @@ class AIClient:
 
     async def ask(
             self,
-            messages: Union[List[AIMessage], List[Dict[str, str]]],
+            messages: Union[List[AIMessage], List[Dict[str, Any]]],
             parameters: Optional[Dict[str, Any]] = None,
             context: Optional[Dict[str, Any]] = None,
             max_retries: int = 3
@@ -126,7 +126,7 @@ class AIClient:
 
     async def _send_request(
             self,
-            messages: List[Dict[str, str]],
+            messages: List[Dict[str, Any]],
             parameters: Dict[str, Any],
             context: Optional[Dict[str, Any]],
             attempt: int
@@ -276,7 +276,7 @@ class AIClient:
 
         return None
 
-    def _format_messages(self, messages: Union[List[AIMessage], List[Dict[str, str]]]) -> List[Dict[str, str]]:
+    def _format_messages(self, messages: Union[List[AIMessage], List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
         """
         格式化消息列表
 
