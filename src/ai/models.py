@@ -11,7 +11,6 @@ from typing import Dict, List, Optional, Any, Union
 
 from pydantic import BaseModel, Field, field_validator, validator
 
-
 MessageContent = Union[str, List[Dict[str, Any]]]
 
 
@@ -92,7 +91,7 @@ class AIConfig(BaseModel):
             **context
         }
         rendered_headers = self._render_dict_template(self.headers, headers_context)
-        logger.debug(f"Rendered headers: {rendered_headers}")
+        logger.debug(f"Rendered headers: {rendered_headers}".replace(self.api_key, "******"))
         return rendered_headers
 
     def get_body(self, messages: List[Dict[str, Any]], context: Optional[Dict[str, Any]] = None) -> str:
@@ -118,7 +117,7 @@ class AIConfig(BaseModel):
 
         rendered_body = self._render_dict_template(self.body, body_context)
 
-        logger.debug(f"Rendered body: {rendered_body}")
+        logger.debug(f"Rendered body: {rendered_body}".replace(self.api_key, "******"))
 
         try:
             return json.dumps(rendered_body, ensure_ascii=False)
