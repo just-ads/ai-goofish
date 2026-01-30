@@ -241,7 +241,7 @@ class ProductEvaluator:
         return self.synthesize_final()
 
     @classmethod
-    def create_from_config(cls, text_ai_config: AIConfig, image_ai_config: AIConfig = None):
+    def create_from_config(cls, text_ai_config: AIConfig, image_ai_config: AIConfig = None) -> "ProductEvaluator":
         text_ai_client = AIClient(text_ai_config)
         image_ai_client = AIClient(image_ai_config) if image_ai_config else None
         return cls(text_ai_client, image_ai_client)

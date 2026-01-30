@@ -35,5 +35,5 @@ class NotificationManager:
         return None
 
     @classmethod
-    def create_from_configs(cls, configs: List[Dict]) -> NotificationManager:
+    def create_from_configs(cls, configs: List[Dict]) -> "NotificationManager":
         return cls(configs)
