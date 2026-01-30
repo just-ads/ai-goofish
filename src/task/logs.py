@@ -102,3 +102,38 @@ async def get_task_logs(
         logger.error(f"读取任务日志失败: {e}")
 
     return logs
+
+
+def trim_log_file(path: str, max_size: int, keep_ratio: float = 0.6, encoding="utf-8"):
+    """
+    限制日志文件大小，超过 max_size 时从头删除完整行，
+    保留文件尾部，使裁剪后大小约为 max_size * keep_ratio。
+    """
+    if not os.path.exists(path):
+        return
+
+    size = os.path.getsize(path)
+    if size <= max_size:
+        return
+
+    target_size = int(max_size * keep_ratio)
+    if target_size <= 0:
+        target_size = max_size * 0.6
+
+    with open(path, "r", encoding=encoding) as f:
+        lines = f.readlines()
+
+    total = 0
+    keep = []
+
+    for line in reversed(lines):
+        line_size = len(line.encode(encoding))
+        if total + line_size > target_size:
+            break
+        keep.append(line)
+        total += line_size
+
+    keep.reverse()
+
+    with open(path, "w", encoding=encoding) as f:
+        f.writelines(keep)

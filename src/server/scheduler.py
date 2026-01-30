@@ -10,7 +10,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
 from src.env import MAX_CONCURRENT_TASKS
-from src.task.logs import get_logs_file_name
+from src.task.logs import get_logs_file_name, trim_log_file
 from src.task.task import get_all_tasks, Task
 from src.utils.logger import logger
 
@@ -21,6 +21,8 @@ scheduler = AsyncIOScheduler(timezone="Asia/Shanghai")
 
 # 并发限制（同时运行的任务数）
 semaphore = asyncio.Semaphore(MAX_CONCURRENT_TASKS)
+
+MAX_LOG_SIZE = 512 * 1024  # 512K
 
 
 def _is_process_alive(pid: Optional[int]) -> bool:
@@ -201,6 +203,7 @@ async def run_task(task_id: int, task_name: str):
             logger.info(f"启动子进程执行爬虫: 任务ID={task_id}")
             logs_file = get_logs_file_name(task_id)
             logger.debug(f"日志文件路径: {logs_file}")
+            trim_log_file(logs_file, MAX_LOG_SIZE)
 
             with open(logs_file, 'a') as f:
                 process = await asyncio.create_subprocess_exec(
