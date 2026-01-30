@@ -15,10 +15,10 @@ from src.utils.file_operator import FileOperator
 
 class AICreateModel(BaseModel):
     """AI 创建模型"""
-
     name: str
     endpoint: str
     model: str
+    multimodal: Optional[bool] = False
     api_key: Optional[str] = ""
     proxy: Optional[str] = ""
     headers: Optional[Dict[str, str]] = {"Authorization": "Bearer {key}", "Content-Type": "application/json"}
@@ -27,11 +27,11 @@ class AICreateModel(BaseModel):
 
 class AIUpdateModel(BaseModel):
     """AI 更新请求模型"""
-
     name: Optional[str] = None
     endpoint: Optional[str] = None
     api_key: Optional[str] = None
     model: Optional[str] = None
+    multimodal: Optional[bool] = None
     proxy: Optional[str] = None
     headers: Optional[Dict[str, str]] = None
     body: Optional[Dict[str, Any]] = None

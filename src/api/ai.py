@@ -90,7 +90,20 @@ async def api_create_ai(config: AICreateModel):
 async def api_ai_test(config: AICreateModel):
     try:
         client = AIClient(AIConfig(**config.model_dump(), id='test'))
-        response = await client.ask(messages=[{"role": "user", "content": "Hello."}], max_retries=2)
+
+        if config.multimodal:
+            response = await client.ask(
+                messages=[{
+                    "role": 'user',
+                    'content': [
+                        {'type': 'text', 'text': '描述图片'},
+                        {'type': 'image_url', 'image_url': 'https://inews.gtimg.com/om_bt/OsbU7Hilx3AaiHWB45v3QuxwkOeKDNrAaU1AxGLcH2xcIAA/641'},
+                    ]
+                }],
+                max_retries=2
+            )
+        else:
+            response = await client.ask(messages=[{"role": "user", "content": "Hello."}], max_retries=2)
 
         if not response.success:
             raise HTTPException(status_code=500, detail=response.error)
@@ -176,7 +189,20 @@ async def api_test_provider(id: str):
             raise HTTPException(status_code=404, detail=f"AI '{id}' 未找到")
 
         client = AIClient(config)
-        response = await client.ask(messages=[{"role": "user", "content": "Hello."}], max_retries=2)
+
+        if config.multimodal:
+            response = await client.ask(
+                messages=[{
+                    "role": 'user',
+                    'content': [
+                        {'type': 'text', 'text': '描述图片'},
+                        {'type': 'image_url', 'image_url': 'https://inews.gtimg.com/om_bt/OsbU7Hilx3AaiHWB45v3QuxwkOeKDNrAaU1AxGLcH2xcIAA/641'},
+                    ]
+                }],
+                max_retries=2
+            )
+        else:
+            response = await client.ask(messages=[{"role": "user", "content": "Hello."}], max_retries=2)
 
         if not response.success:
             raise HTTPException(status_code=500, detail=response.error)

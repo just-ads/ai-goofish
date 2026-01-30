@@ -49,6 +49,7 @@ class AIConfig(BaseModel):
     - endpoint: API端点URL
     - api_key: API密钥
     - model: 模型名称
+    - multimodal 是否为多模态模型
     - proxy: 代理地址
     - headers: 请求头配置
     - body: 请求体配置
@@ -58,6 +59,7 @@ class AIConfig(BaseModel):
     endpoint: str = Field(..., description="API端点URL")
     api_key: str = Field(..., description="API密钥")
     model: str = Field(..., description="模型名称")
+    multimodal: bool = Field(False, description="是否为多模态模型")
     proxy: Optional[str] = Field(None, description="代理地址")
 
     headers: Dict[str, str] = Field(
