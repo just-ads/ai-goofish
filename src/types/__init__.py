@@ -4,13 +4,13 @@
 
 # 从各个模块导入类型定义
 from .config import *
-from .task import *
-from .server import *
 from .notify import *
+from .server import *
+from .task import *
 
 __all__ = [
     # Config types
-    'BrowserConfig', 'AppConfigModel', 'NotificationConfig', 'EvaluatorConfig',
+    'BrowserConfig', 'AppConfigModel', 'NotificationConfig', 'EvaluatorConfig', 'EvaluationSteps', 'EvaluationStep',
 
     # Product types
     'Product', 'Seller', 'ProductPriceData', 'Analysis',

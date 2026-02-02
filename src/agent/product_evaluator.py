@@ -1,10 +1,11 @@
 import json
 from datetime import datetime
-from typing import Dict, Any, List, Optional, Union
+from typing import Dict, Any, List, Optional
 
-from src.ai.models import AIConfig, MessageContent
 from src.ai.client import AIClient
-from src.types import Product, Seller, ProductPriceData, Analysis
+from src.ai.config import get_ai_config
+from src.ai.models import MessageContent
+from src.types import Product, Seller, ProductPriceData, Analysis, EvaluatorConfig, EvaluationSteps, EvaluationStep
 from src.utils.logger import logger
 from src.utils.utils import dict_pick, fix_me
 
@@ -14,10 +15,14 @@ class ProductEvaluator:
     商品评估器：按步骤调用 AI
     """
 
-    def __init__(self, text_ai_client: AIClient, image_ai_client: Optional[AIClient] = None):
+    def __init__(self,
+                 text_ai_client: AIClient,
+                 image_ai_client: Optional[AIClient] = None,
+                 steps_config: Optional[EvaluationSteps] = None):
         self.history: list[Dict[str, Any]] = []
         self.text_ai_client = text_ai_client
         self.image_ai_client = image_ai_client
+        self.steps_config = steps_config
         logger.debug("ProductEvaluator 初始化完成")
 
     async def _ask_ai(self, prompt: MessageContent, use_image: bool = False) -> Dict[str, Any]:
@@ -205,32 +210,46 @@ class ProductEvaluator:
         执行完整分析流程。
         """
         logger.info(f"开始商品评估流程")
+        steps_config = self.steps_config or {}
+
         self.history = []
 
         # Step 1: 标题过滤
-        step1 = await self.step_title_filter(product, target_product)
-        suggestion1 = step1.get('suggestion', 0)
-        if suggestion1 < 30:
-            logger.warning(f"标题过滤未通过: suggestion={suggestion1}, 提前结束评估")
-            return self.synthesize_final()
+        step1_config: EvaluationStep = steps_config.get('step1', {})
+        if not step1_config.get('disabled', False):
+            step1 = await self.step_title_filter(product, target_product)
+            suggestion1 = step1.get('suggestion', 0)
+            if suggestion1 < step1_config.get('threshold', 30):
+                logger.warning(f"标题过滤未通过: suggestion={suggestion1}, 提前结束评估")
+                return self.synthesize_final()
 
         # Step 2: 商品详情评估
-        step2 = await self.step_product_analysis(product, target_product)
-        suggestion2 = step2.get('suggestion', 0)
-        if suggestion2 < 50:
-            logger.warning(f"商品符合度未通过: suggestion={suggestion2}, 提前结束评估")
-            return self.synthesize_final()
+        step2_config: EvaluationStep = steps_config.get('step2', {})
+        if not step2_config.get('disabled', False):
+            step2 = await self.step_product_analysis(product, target_product)
+            suggestion2 = step2.get('suggestion', 0)
+            if suggestion2 < step2_config.get('threshold', 50):
+                logger.warning(f"商品符合度未通过: suggestion={suggestion2}, 提前结束评估")
+                return self.synthesize_final()
 
         # Step 3: 卖家可信度评估
-        step3 = await self.step_seller_analysis(seller)
-        suggestion3 = step3.get('suggestion', 0)
-        if suggestion3 < 50:
-            logger.warning(f"卖家评估未通过: suggestion={suggestion2}, 提前结束评估")
-            return self.synthesize_final()
+        step3_config: EvaluationStep = steps_config.get('step3', {})
+        if not step3_config.get('disabled', False):
+            step3 = await self.step_seller_analysis(seller)
+            suggestion3 = step3.get('suggestion', 0)
+            if suggestion3 < step3_config.get('threshold', 50):
+                logger.warning(f"卖家评估未通过: suggestion={suggestion3}, 提前结束评估")
+                return self.synthesize_final()
 
         # Step 4: 商品图片评估
         if self.image_ai_client:
-            await self.step_image_analysis(product)
+            step4_config: EvaluationStep = steps_config.get('step4', {})
+            if not step4_config.get('disabled', False):
+                step4 = await self.step_image_analysis(product)
+                suggestion4 = step4.get('suggestion', 0)
+                if suggestion4 < step4_config.get('threshold', 50):
+                    logger.warning(f"图片评估未通过: suggestion={suggestion4}, 提前结束评估")
+                    return self.synthesize_final()
         else:
             logger.info(f"跳过图片分析: 未配置图片分析")
 
@@ -241,7 +260,15 @@ class ProductEvaluator:
         return self.synthesize_final()
 
     @classmethod
-    def create_from_config(cls, text_ai_config: AIConfig, image_ai_config: AIConfig = None) -> "ProductEvaluator":
+    async def create_from_config(cls, config: EvaluatorConfig) -> "ProductEvaluator | None":
+        text_ai_config = await get_ai_config(config.get('textAI'))
+        if not text_ai_config:
+            return None
+        image_ai_config = await get_ai_config(config.get('imageAI'))
         text_ai_client = AIClient(text_ai_config)
         image_ai_client = AIClient(image_ai_config) if image_ai_config else None
-        return cls(text_ai_client, image_ai_client)
+        return cls(
+            text_ai_client=text_ai_client,
+            image_ai_client=image_ai_client,
+            steps_config=config.get('steps')
+        )

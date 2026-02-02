@@ -1,7 +1,7 @@
 """
 config 类型定义模块
 """
-from typing import TypedDict, Optional, Literal, List
+from typing import TypedDict, Optional, Literal
 
 
 class BrowserConfig(TypedDict, total=False):
@@ -13,7 +13,19 @@ class BrowserConfig(TypedDict, total=False):
 class NotificationConfig(TypedDict, total=False):
     """通知配置"""
     enabled: bool
-    providers: List[str]
+    threshold: float
+
+
+class EvaluationStep(TypedDict, total=False):
+    disabled: bool
+    threshold: float
+
+
+class EvaluationSteps(TypedDict, total=False):
+    step1: EvaluationStep
+    step2: EvaluationStep
+    step3: EvaluationStep
+    step4: EvaluationStep
 
 
 class EvaluatorConfig(TypedDict, total=False):
@@ -21,7 +33,7 @@ class EvaluatorConfig(TypedDict, total=False):
     enabled: bool
     textAI: Optional[str]
     imageAI: Optional[str]
-
+    steps: EvaluationSteps
 
 
 class AppConfigModel(TypedDict, total=False):

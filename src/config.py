@@ -7,7 +7,7 @@ import os
 from typing import Dict, Any, List, Optional, ClassVar
 
 from src.env import APP_CONFIG_FILE
-from src.types import AppConfigModel
+from src.types import AppConfigModel, NotificationConfig, BrowserConfig, EvaluatorConfig
 from src.utils.logger import logger
 
 
@@ -47,11 +47,12 @@ class AppConfig:
             },
             "notifications": {
                 "enabled": False,
+                "threshold": 60
             },
             "evaluator": {
                 "enabled": True,
                 "textAI": None,
-                "imageAI": None,
+                "imageAI": None
             }
         }
 
@@ -155,6 +156,18 @@ class AppConfig:
         except Exception as e:
             logger.error(f"设置配置失败: {key} = {value}, 错误: {e}")
             return False
+
+    @property
+    def notifications_config(self) -> NotificationConfig:
+        return self.get('notifications', {"enabled": False, "threshold": 60})
+
+    @property
+    def browser_config(self) -> BrowserConfig:
+        return self.get('browser', {"headless": True, "channel": "chrome"})
+
+    @property
+    def evaluator_config(self) -> EvaluatorConfig:
+        return self.get('evaluator', {"enabled": True})
 
     @property
     def is_notifications_enabled(self) -> bool:

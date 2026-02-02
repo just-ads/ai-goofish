@@ -1,14 +1,16 @@
-from typing import Any, List, Dict
+from typing import Any
 
+from src.notify.config import get_enabled_notifiers
 from src.notify.gotify import GotifyNotifier
 from src.notify.ntfy import NtfyNotifier
 from src.notify.wechat_service import WechatWebhookNotifier
-from src.types import TaskResult, NotificationProviders, NotificationProvider
+from src.types import TaskResult, NotificationProvider, NotificationConfig, NotificationProviders
 
 
 class NotificationManager:
-    def __init__(self, providers: NotificationProviders):
+    def __init__(self, providers: NotificationProviders, threshold: float = 60):
         self.notifiers = []
+        self.threshold = threshold
         if providers:
             for provider in providers:
                 notifier = self.create_notifier(provider)
@@ -17,7 +19,7 @@ class NotificationManager:
 
     def notify(self, task_result: TaskResult):
         analysis = task_result.get('分析结果', {})
-        if analysis.get('推荐度', 0) < 60:
+        if analysis.get('推荐度', 0) < self.threshold:
             return
 
         for notifier in self.notifiers:
@@ -35,5 +37,13 @@ class NotificationManager:
         return None
 
     @classmethod
-    def create_from_configs(cls, configs: List[Dict]) -> "NotificationManager":
-        return cls(configs)
+    async def create_from_config(cls, config: NotificationConfig) -> "NotificationManager | None":
+        providers = await get_enabled_notifiers()
+
+        if not providers:
+            return None
+
+        return cls(
+            providers=providers,
+            threshold=config.get('threshold', 60)
+        )
