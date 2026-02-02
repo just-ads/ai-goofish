@@ -59,7 +59,7 @@ class NotifyTestCase(unittest.TestCase):
             self.assertIn("message", kwargs["json"])
 
     def test_wecom_webhook_send_markdown(self):
-        notifier = WechatWebhookNotifier({"type": "wecom", "url": "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=xxx"})
+        notifier = WechatWebhookNotifier({"type": "wechat", "url": "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=xxx"})
         task_result = make_test_task_result()
 
         response = Mock()
