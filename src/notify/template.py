@@ -30,7 +30,7 @@ def get_notifier_templates():
         },
         {
             'id': '2',
-            'type': 'webchat',
+            'type': 'wechat',
             'name': '企业微信机器人(Webhook)',
             'template': {
                 'url': {
