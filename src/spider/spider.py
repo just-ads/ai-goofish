@@ -200,7 +200,7 @@ class GoofishSpider:
             except Exception as e:
                 logger.error("AI分析出错: {}", e)
         else:
-            logger.warning("AI分析为启用或未配置")
+            logger.warning("AI分析未启用或未配置")
 
         logger.info("开始写入数据")
         save_task_result(task_id, final_record)
