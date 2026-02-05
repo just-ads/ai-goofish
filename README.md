@@ -42,11 +42,6 @@
 ├── webui/                # Vue 3 前端UI
 ├── resources/            # 前端构建产物
 ├── tests/                # Python unittest
-├── jsonl/                # 采集结果
-├── tasks.json            # 任务配置
-├── app.config            # 系统配置
-├── ai.config             # AI 配置
-├── notifier.config       # 通知配置
 ├── dev.py                # 一键开发
 └── docker-compose.yml    # Docker Compose
 ```
