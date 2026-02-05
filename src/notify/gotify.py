@@ -15,7 +15,7 @@ class GotifyNotifier:
 
     def send(self, task_result: TaskResult):
         try:
-            url = f"{self.server_url}/message?token={self.token}"
+            url = f"{self.server_url}/message?token=**********"
             logger.info("推送 [Gotify] 通知，地址为：{}", url)
             product = task_result['商品信息']
             analysis = task_result.get('分析结果', {})

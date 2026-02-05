@@ -23,7 +23,7 @@ class NtfyNotifier:
         httpx.post(self.topic_url, content='你好，准备好接受推荐了吗', timeout=30)
 
     def send(self, task_result: TaskResult):
-        logger.info("推送 [Ntfy] 通知，地址为：{}", self.topic_url)
+        logger.info(f"推送 [Ntfy] 通知，地址为：{self.topic_url}")
         try:
             product = task_result['商品信息']
             analysis = task_result.get('分析结果', {})

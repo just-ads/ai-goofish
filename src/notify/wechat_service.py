@@ -1,8 +1,5 @@
 """企业微信消息推送（原群机器人 Webhook）。
-
 文档：https://developer.work.weixin.qq.com/document/path/99110
-
-该方式不需要 access_token，仅需向 webhook URL POST JSON。
 """
 import httpx
 
@@ -19,17 +16,21 @@ def _truncate_utf8(text: str, max_bytes: int) -> str:
 
 class WechatWebhookNotifier:
     def __init__(self, config: WechatWebhookConfig):
-        self.webhook_url = f"{config.get('url', '').rstrip('/')}?key={config.get('key', '')}"
+        self.webhook_url = config.get('url', '').rstrip('/')
+        self.key = config.get('key', '')
         self.msgtype = config.get("msgtype", "markdown")
         self.mentioned_list = config.get("mentioned_list")
         self.mentioned_mobile_list = config.get("mentioned_mobile_list")
+
+    def get_url(self, mask: bool = False) -> str:
+        return f"{self.webhook_url}?key={'******-****-****-****-******' if mask else self.key}"
 
     def test(self):
         self._send_text("你好，准备好接受推荐了吗")
 
     def send(self, task_result: TaskResult):
         try:
-            logger.info("推送 [Wechat] 通知，地址为：{}", self.webhook_url)
+            logger.info(f"推送 [Wechat] 通知，地址为：{self.get_url(True)}")
 
             product = task_result["商品信息"]
             analysis = task_result.get("分析结果", {}) or {}
@@ -91,10 +92,11 @@ class WechatWebhookNotifier:
         self._post(payload)
 
     def _post(self, payload: dict):
-        if not self.webhook_url:
+        url = self.get_url()
+        if not url:
             raise ValueError("Wechat webhook url 不能为空")
 
-        resp = httpx.post(self.webhook_url, json=payload, timeout=30)
+        resp = httpx.post(url, json=payload, timeout=30)
 
         # webhook 返回 JSON：{errcode:0, errmsg:'ok'}
         try:
