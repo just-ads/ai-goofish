@@ -3,7 +3,6 @@ import asyncio
 import os
 import random
 import sys
-from datetime import datetime
 from typing import Any, Literal, Optional
 from urllib.parse import urlencode
 
@@ -17,6 +16,7 @@ from src.spider.parsers import pares_product_info_and_seller_info, pares_seller_
 from src.task.result import save_task_result, get_result_filename, get_product_history_info
 from src.task.task import get_all_tasks
 from src.types import Seller, Task, TaskResult
+from src.utils.date import now_str
 from src.utils.logger import logger
 from src.utils.utils import random_sleep, safe_get, extract_id_from_url_regex
 
@@ -54,7 +54,7 @@ class GoofishSpider:
         self.browser_channel = browser_channel
         self.browser = None
         self.browser_context = None
-        self.crawl_time = datetime.now().strftime("%Y-%m-%d %H:%M")
+        self.crawl_time = now_str()
         self._init_output_filename()
 
     def _init_output_filename(self):

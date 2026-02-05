@@ -1,11 +1,11 @@
 import json
-from datetime import datetime
 from typing import Dict, Any, List, Optional
 
 from src.ai.client import AIClient
 from src.ai.config import get_ai_config
 from src.ai.models import MessageContent
 from src.types import Product, Seller, ProductPriceData, Analysis, EvaluatorConfig, EvaluationSteps, EvaluationStep
+from src.utils.date import now_str
 from src.utils.logger import logger
 from src.utils.utils import dict_pick, fix_me
 
@@ -99,7 +99,7 @@ class ProductEvaluator:
         prompt = (
             f'需求商品描述: {target_product.get('description')}'
             '任务：评估商品可信度和与需求商品的符合度\n'
-            f'当前时间：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n'
+            f'当前时间：{now_str()}\n'
             f'商品信息：: {json.dumps(product_info, ensure_ascii=False)}\n'
         )
         reply = await self._ask_ai(prompt)
