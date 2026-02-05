@@ -2,6 +2,8 @@
 Notifier相关路由模块
 处理Notifier配置的增删改查、测试等功能
 """
+from typing import Tuple
+
 from fastapi import APIRouter, HTTPException, Depends
 
 from src.api.auth import verify_token, success_response
@@ -17,6 +19,21 @@ from src.utils.secrecy import secrecy_value, is_secrecy_value
 
 # 创建路由器
 router = APIRouter(prefix="/notifier", tags=["notifier"])
+
+
+def _verify_config(config: dict) -> Tuple[bool, str | None]:
+    notifier_type = config.get("type")
+    templates = get_notifier_templates()
+    template = next((it for it in templates if it['type'] == notifier_type), None)
+    if not template:
+        return False, f'不支持的通知类型 {notifier_type}'
+    template = template.get('template')
+
+    for key, value in template.items():
+        if value.get('required', False) and (not config.get(key)):
+            return False, f'字段 {key} 是必须的'
+
+    return True, None
 
 
 def _mask_config(config: dict, secrecy_keys: list[str]) -> dict:
@@ -64,6 +81,9 @@ async def api_get_notifiers():
 async def api_create_notifier(config: dict):
     """创建Notifier配置"""
     try:
+        verify, error = _verify_config(config)
+        if not verify:
+            raise HTTPException(status_code=500, detail=f"创建失败: {error}")
         notifier = await add_notifier_config(config)
         if not notifier:
             raise HTTPException(status_code=500, detail="保存Notifier配置失败")

@@ -19,9 +19,9 @@ class GotifyConfig(TypedDict):
 
 class WechatWebhookConfig(TypedDict):
     """企业微信“消息推送（原群机器人）”Webhook 配置"""
-
     type: Literal["wechat"]
     url: str
+    key: str
     msgtype: NotRequired[Literal["markdown", "text"]]
     mentioned_list: NotRequired[List[str]]
     mentioned_mobile_list: NotRequired[List[str]]
@@ -30,4 +30,3 @@ class WechatWebhookConfig(TypedDict):
 NotificationProvider = NtfyConfig | GotifyConfig | WechatWebhookConfig
 
 NotificationProviders = List[NotificationProvider]
-

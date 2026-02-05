@@ -8,6 +8,7 @@ def get_notifier_templates():
                 'url': {
                     'name': '通知地址',
                     'type': 'url',
+                    'required': True,
                 }
             },
             'doc': 'https://docs.ntfy.sh/'
@@ -20,10 +21,12 @@ def get_notifier_templates():
                 'url': {
                     'name': '通知地址',
                     'type': 'url',
+                    'required': True,
                 },
                 'token': {
                     'name': 'token',
                     'type': 'password',
+                    'required': True,
                 }
             },
             'doc': 'https://gotify.net/docs/index'
@@ -36,9 +39,15 @@ def get_notifier_templates():
                 'url': {
                     'name': 'Webhook 地址',
                     'type': 'url',
+                    'default': 'https://qyapi.weixin.qq.com/cgi-bin/webhook/send',
+                    'editable': False,
+                },
+                'key': {
+                    'name': 'key',
+                    'type': 'password',
+                    'required': True,
                 }
             },
             'doc': 'https://developer.work.weixin.qq.com/document/path/99110'
         }
     ]
-

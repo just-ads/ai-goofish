@@ -19,7 +19,7 @@ def _truncate_utf8(text: str, max_bytes: int) -> str:
 
 class WechatWebhookNotifier:
     def __init__(self, config: WechatWebhookConfig):
-        self.webhook_url = config.get("url", "").strip()
+        self.webhook_url = f"{config.get('url', '').rstrip('/')}?key={config.get('key', '')}"
         self.msgtype = config.get("msgtype", "markdown")
         self.mentioned_list = config.get("mentioned_list")
         self.mentioned_mobile_list = config.get("mentioned_mobile_list")
@@ -106,4 +106,3 @@ class WechatWebhookNotifier:
         errcode = data.get("errcode")
         if errcode not in (0, "0", None):
             logger.error("[Wechat] 推送失败: errcode={}, errmsg={}", errcode, data.get("errmsg"))
-
