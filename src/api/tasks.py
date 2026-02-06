@@ -3,7 +3,7 @@
 处理任务的增删改查、启停等操作
 """
 import asyncio
-from typing import cast, Optional
+from typing import Optional
 
 from apscheduler.triggers.cron import CronTrigger
 from fastapi import APIRouter, HTTPException, Depends
@@ -15,7 +15,8 @@ from src.server.scheduler import (
     update_scheduled_task, run_task, remove_task_from_scheduler,
     is_task_running, get_all_running_tasks, stop_task, get_task_status
 )
-from src.task.task import get_all_tasks, add_task, update_task, get_task, remove_task
+from src.task.record import get_task_record
+from src.task.task import get_tasks, add_task, update_task, get_task, remove_task
 from src.types import Task
 
 # 创建路由器
@@ -87,29 +88,29 @@ def _validate_task_payload(payload: Task, *, creating: bool, old_task: Optional[
 async def api_get_tasks():
     """获取所有任务"""
     try:
-        tasks = await get_all_tasks()
+        tasks = await get_tasks()
         for task in tasks:
             task_id = task.get('task_id')
             if task_id is None:
                 continue
-            task_state = cast(Task, get_task_status(task_id))
+            task_state = get_task_status(task_id)
             task.update(task_state)
+            task_record = await get_task_record(task_id)
+            task['run_record'] = task_record
+
         return success_response("任务获取成功", tasks)
     except Exception:
         raise HTTPException(status_code=500, detail="读取任务配置时发生错误")
 
 
-@router.post("/create", dependencies=[Depends(verify_token)])
+@router.post("", dependencies=[Depends(verify_token)])
 async def api_create_task(req: Task):
     """创建任务"""
     try:
         _validate_task_payload(req, creating=True)
 
         task = await add_task(req)
-        task_id = task.get('task_id')
-        if task_id is not None:
-            task_state = cast(Task, get_task_status(task_id))
-            task.update(task_state)
+
         if task.get('enabled'):
             add_task_to_scheduler(task)
         return success_response("任务创建成功", task)
@@ -117,6 +118,22 @@ async def api_create_task(req: Task):
         raise
     except Exception:
         raise HTTPException(status_code=500, detail="创建失败")
+
+
+@router.put("/{task_id}", dependencies=[Depends(verify_token)])
+async def api_get_task(task_id: int):
+    """获取任务"""
+    try:
+        task = await get_task(task_id)
+
+        if not task:
+            raise HTTPException(status_code=404, detail=f"任务 {task_id} 未找到")
+
+        return success_response("任务获取成功", task)
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=500, detail="获取失败")
 
 
 @router.post("/update", dependencies=[Depends(verify_token)])
@@ -140,7 +157,7 @@ async def api_update_task(req: Task):
             # 如果任务之前是禁用状态，现在启用了，添加到调度器
             if not old_task or not old_task.get('enabled'):
                 add_task_to_scheduler(new_task)
-                task_state = cast(Task, get_task_status(task_id_int))
+                task_state = get_task_status(task_id_int)
                 new_task.update(task_state)
             else:
                 # 如果任务之前就是启用的，更新调度器中的任务

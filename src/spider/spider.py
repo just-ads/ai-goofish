@@ -3,7 +3,7 @@ import asyncio
 import os
 import random
 import sys
-from typing import Literal, Optional
+from typing import Literal, Optional, Tuple
 from urllib.parse import urlencode
 
 from playwright.async_api import async_playwright, Page, TimeoutError, Locator
@@ -13,12 +13,13 @@ from src.config import get_config_instance
 from src.env import STATE_FILE, RUNNING_IN_DOCKER
 from src.notify.notify_manger import NotificationManager
 from src.spider.parsers import pares_product_info_and_seller_info, pares_seller_detail_info
+from src.task.record import add_task_record
 from src.task.result import save_task_result, get_result_filename, get_product_history_info
-from src.task.task import get_all_tasks
+from src.task.task import get_tasks
 from src.types import Seller, Task, TaskResult
 from src.utils.date import now_str
 from src.utils.logger import logger
-from src.utils.utils import random_sleep, safe_get, extract_id_from_url_regex
+from src.utils.utils import random_sleep, extract_id_from_url_regex
 
 DETAIL_API_URL_PATTERN = 'h5api.m.goofish.com/h5/mtop.taobao.idle.pc.detail'
 
@@ -238,7 +239,7 @@ class GoofishSpider:
             logger.info("开始推送通知")
             self.notification_manager.notify(final_record)
 
-    async def run(self):
+    async def run(self) -> Tuple[Literal['normal', 'abnormal', 'risk'], int]:
         """执行爬虫任务"""
         keyword = self.task.get('keyword')
         max_pages = self.task.get('max_pages', 1)
@@ -248,31 +249,33 @@ class GoofishSpider:
 
         last_processed_count = await self.get_history()
 
-        async with async_playwright() as p:
-            # 尽量模拟真实浏览器，不要使用 js 打补丁的方式
-            self.browser = await p.chromium.launch(
-                headless=self.browser_headless,
-                channel=self.browser_channel
-            )
-            version = self.browser.version
-            # 使用真实版本号
-            user_agent = f'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{version.split('.')[0]} Safari/537.36'
-            self.browser_context = await self.browser.new_context(
-                storage_state=self.state_file,
-                viewport={"width": 1920, "height": 957},
-                screen={'width': 1920, 'height': 1080},
-                device_scale_factor=1.0,
-                user_agent=user_agent,
-                is_mobile=False,
-                has_touch=False,
-                locale='zh-CN',
-                timezone_id='Asia/Shanghai',
-                permissions=["notifications"]
-            )
+        ret_type: Literal['normal', 'abnormal', 'risk'] = 'normal'
 
-            page = await self.browser_context.new_page()
+        try:
+            async with async_playwright() as p:
+                # 尽量模拟真实浏览器，不要使用 js 打补丁的方式
+                self.browser = await p.chromium.launch(
+                    headless=self.browser_headless,
+                    channel=self.browser_channel
+                )
+                version = self.browser.version
+                # 使用真实版本号
+                user_agent = f'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{version.split('.')[0]} Safari/537.36'
+                self.browser_context = await self.browser.new_context(
+                    storage_state=self.state_file,
+                    viewport={"width": 1920, "height": 957},
+                    screen={'width': 1920, 'height': 1080},
+                    device_scale_factor=1.0,
+                    user_agent=user_agent,
+                    is_mobile=False,
+                    has_touch=False,
+                    locale='zh-CN',
+                    timezone_id='Asia/Shanghai',
+                    permissions=["notifications"]
+                )
 
-            try:
+                page = await self.browser_context.new_page()
+
                 logger.info("步骤 1 - 直接导航到搜索结果页...")
                 params = {'q': keyword}
                 search_url = f"https://www.goofish.com/search?{urlencode(params)}&spm=a21ybx.home.searchInput.0"
@@ -335,28 +338,29 @@ class GoofishSpider:
                         await random_sleep(10, 20)
                         product_list = await page.locator('a[class*="feeds-item-wrap"]').all()
                         await self.process_product_list(product_list)
-                    except ValidationError as e:
-                        raise e
                     except Exception as e:
                         logger.error(f"第 {page_num}/{max_pages} 页处理失败: {e}")
 
-            except ValidationError as e:
-                logger.error("==================== CRITICAL BLOCK DETECTED ====================")
-                logger.error(f"检测到闲鱼反爬虫验证 ({e})，程序将终止。")
-                long_sleep_duration = random.randint(300, 600)
-                logger.warning(f"为避免账户风险，将执行一次长时间休眠 ({long_sleep_duration} 秒) 后再退出...")
-                await asyncio.sleep(long_sleep_duration)
-                logger.info("长时间休眠结束，现在将安全退出。")
-                logger.error("===================================================================")
-                logger.info("触发闲鱼反爬虫机制，将关闭浏览器")
-            except Exception as e:
-                logger.error(f"程序发生错误: {e}")
-
             await self.browser.close()
+
+        except ValidationError as e:
+            logger.error("==================== CRITICAL BLOCK DETECTED ====================")
+            logger.error(f"检测到闲鱼反爬虫验证 ({e})，程序将终止。")
+            long_sleep_duration = random.randint(300, 600)
+            logger.warning(f"为避免账户风险，将执行一次长时间休眠 ({long_sleep_duration} 秒) 后再退出...")
+            await asyncio.sleep(long_sleep_duration)
+            logger.info("长时间休眠结束，现在将安全退出。")
+            logger.error("===================================================================")
+            logger.info("触发闲鱼反爬虫机制，将关闭浏览器")
+            ret_type = 'risk'
+        except Exception as e:
+            logger.error(f"程序发生错误: {e}")
+            ret_type = 'abnormal'
 
         new_processed_count = len(self.processed_ids) - last_processed_count
         logger.info(f"任务完成，本次运行共处理了 {new_processed_count} 个新商品")
-        return new_processed_count
+
+        return ret_type, new_processed_count
 
 
 async def main(debug: bool = False):
@@ -377,7 +381,7 @@ async def main(debug: bool = False):
     if not os.path.exists(STATE_FILE):
         logger.warning(f"登录状态文件 '{STATE_FILE}' 不存在")
 
-    tasks = await get_all_tasks()
+    tasks = await get_tasks()
 
     active_tasks = []
 
@@ -426,11 +430,14 @@ async def main(debug: bool = False):
     logger.info("所有任务执行完毕")
 
     for i, result in enumerate(results):
-        task_name = active_tasks[i]['task_name']
+        task = active_tasks[i]
+        task_name = task['task_name']
         if isinstance(result, Exception):
             logger.error(f"任务 '{task_name}' 因异常而终止: {result}")
+            await add_task_record(task['task_id'], 'abnormal')
         else:
-            logger.info(f"任务 '{task_name}' 正常结束，本次运行共处理了 {result} 个新商品。")
+            await add_task_record(task['task_id'], result[0])
+            logger.info(f"任务 '{task_name}' 结束，结束类型{result[0]}， 本次运行共处理了 {result[1]} 个新商品。")
 
 
 if __name__ == "__main__":

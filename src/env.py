@@ -8,10 +8,13 @@ load_dotenv('data/.env')
 # 数据储存配置
 SECRET_KEY_FILE = 'data/secret_key.txt'
 STATE_FILE = "data/goofish_state.json"
-TASKS_FILE = "data/tasks.json"
+
+TASKS_CONFIG_FILE = "data/tasks.json"
+TASKS_RECORD_FILE = "data/tasks_record.json"
 APP_CONFIG_FILE = "data/app.config"
 AI_CONFIG_FILE = "data/ai.config"
 NOTIFIER_CONFIG_FILE = "data/notifier.config"
+
 IMAGE_SAVE_DIR = "data/images"
 LOGS_DIR = "data/logs"
 RESULT_DIR = "data/results"

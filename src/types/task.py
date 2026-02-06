@@ -6,6 +6,12 @@ from typing import TypedDict, Optional, List, Set
 
 from src.types.product import Product, Seller, Analysis
 
+class TaskRecord(TypedDict):
+    task_id: int
+    total_count: int
+    normal_count: int
+    abnormal_count: int
+    risk_count: int
 
 class Task(TypedDict, total=False):
     """任务类型"""
@@ -21,6 +27,8 @@ class Task(TypedDict, total=False):
     personal_only: Optional[bool]
     running: Optional[bool]
     next_run_time: Optional[str]
+    run_record: Optional[TaskRecord]
+
 
 class TaskResult(TypedDict, total=False):
     任务名称: str

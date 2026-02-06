@@ -11,7 +11,7 @@ from apscheduler.triggers.cron import CronTrigger
 
 from src.env import MAX_CONCURRENT_TASKS
 from src.task.logs import get_logs_file_name, trim_log_file
-from src.task.task import get_all_tasks, Task
+from src.task.task import get_tasks, Task
 from src.utils.logger import logger
 
 # 任务进程表与运行状态缓存
@@ -111,7 +111,7 @@ async def initialize_task_scheduler():
     logger.info("正在加载定时任务调度器...")
 
     try:
-        tasks = await get_all_tasks()
+        tasks = await get_tasks()
         enabled_tasks = [t for t in tasks if t.get('enabled')]
 
         if not scheduler.running:

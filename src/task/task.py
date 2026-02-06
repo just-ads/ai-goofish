@@ -1,15 +1,16 @@
 import json
 from typing import Optional, List
 
-from src.env import TASKS_FILE
+from src.env import TASKS_CONFIG_FILE
 from src.task.logs import remove_logs_file
+from src.task.record import remove_task_record
 from src.task.result import remove_task_result
 from src.types import Task
 from src.utils.file_operator import FileOperator
 
 
 async def add_task(task: Task) -> Task:
-    task_file_op = FileOperator(TASKS_FILE)
+    task_file_op = FileOperator(TASKS_CONFIG_FILE)
 
     data_str = await task_file_op.read()
     data = json.loads(data_str) if data_str else []
@@ -32,7 +33,7 @@ async def update_task(task_update: Task) -> Task:
     if task_id is None:
         raise Exception('任务ID不能为空')
 
-    task_file_op = FileOperator(TASKS_FILE)
+    task_file_op = FileOperator(TASKS_CONFIG_FILE)
 
     data_str = await task_file_op.read()
 
@@ -51,7 +52,7 @@ async def update_task(task_update: Task) -> Task:
 
 
 async def get_task(task_id: int) -> Optional[Task]:
-    task_file_op = FileOperator(TASKS_FILE)
+    task_file_op = FileOperator(TASKS_CONFIG_FILE)
 
     data_str = await task_file_op.read()
 
@@ -63,7 +64,7 @@ async def get_task(task_id: int) -> Optional[Task]:
 
 
 async def remove_task(task_id: int) -> Optional[Task]:
-    task_file_op = FileOperator(TASKS_FILE)
+    task_file_op = FileOperator(TASKS_CONFIG_FILE)
 
     data_str = await task_file_op.read()
 
@@ -79,14 +80,33 @@ async def remove_task(task_id: int) -> Optional[Task]:
     if removed_task:
         remove_task_result(task_id)
         remove_logs_file(task_id)
+        await remove_task_record(task_id)
 
     await task_file_op.write(json.dumps(data, ensure_ascii=False, indent=2))
 
     return removed_task
 
 
-async def get_all_tasks() -> List[Task]:
-    task_file_op = FileOperator(TASKS_FILE)
+async def get_tasks() -> List[Task]:
+    task_file_op = FileOperator(TASKS_CONFIG_FILE)
     data_str = await task_file_op.read()
     data = json.loads(data_str) if data_str else []
     return data
+
+
+'''
+async def update_tasks(tasks: List[Task]):
+    task_file_op = FileOperator(TASKS_CONFIG_FILE)
+    data_str = await task_file_op.read()
+    data = json.loads(data_str) if data_str else []
+    for task in tasks:
+        task_id = task.get('task_id')
+        if task_id is None:
+            continue
+        old_task = next((it for it in data if it['task_id'] == task_id), None)
+        if not old_task:
+            continue
+        old_task.update(task)
+
+    await task_file_op.write(json.dumps(data, ensure_ascii=False, indent=2))
+'''

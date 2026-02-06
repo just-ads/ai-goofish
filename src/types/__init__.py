@@ -16,7 +16,7 @@ __all__ = [
     'Product', 'Seller', 'ProductPriceData', 'Analysis',
 
     # Task types
-    'Task', 'TaskResult', 'TaskResultHistory', 'TaskResultPagination', 'TaskLogEntry',
+    'Task', 'TaskResult', 'TaskResultHistory', 'TaskResultPagination', 'TaskLogEntry', 'TaskRecord',
 
     # Notify types
     'NtfyConfig', 'GotifyConfig', 'WechatWebhookConfig', 'NotificationProvider', 'NotificationProviders',
