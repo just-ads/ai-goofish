@@ -120,7 +120,7 @@ async def api_create_task(req: Task):
         raise HTTPException(status_code=500, detail="创建失败")
 
 
-@router.put("/{task_id}", dependencies=[Depends(verify_token)])
+@router.get("/{task_id}", dependencies=[Depends(verify_token)])
 async def api_get_task(task_id: int):
     """获取任务"""
     try:
