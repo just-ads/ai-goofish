@@ -3,7 +3,7 @@ import asyncio
 import os
 import random
 import sys
-from typing import Any, Literal, Optional
+from typing import Literal, Optional
 from urllib.parse import urlencode
 
 from playwright.async_api import async_playwright, Page, TimeoutError, Locator
@@ -37,7 +37,7 @@ class GoofishSpider:
             self,
             task: Task,
             notification_manager: Optional['NotificationManager'] = None,
-            product_evaluator: Optional[Any] = None,
+            product_evaluator: Optional['ProductEvaluator'] = None,
             state_file: Optional[str] = None,
             browser_headless: bool = False,
             browser_channel: Literal['chrome', 'msedge', 'firefox'] = 'chrome',
@@ -61,22 +61,22 @@ class GoofishSpider:
         """初始化输出文件名"""
         task_id = self.task.get('task_id')
         self.output_filename = get_result_filename(task_id)
-        logger.debug("输出文件名初始化为: {}", self.output_filename)
+        logger.debug(f"输出文件名初始化为: {self.output_filename}")
 
     async def get_history(self):
         """获取历史记录"""
         if os.path.exists(self.output_filename):
-            logger.info("发现已存在文件 {}，正在加载历史记录...", self.output_filename)
+            logger.info(f"发现已存在文件 {self.output_filename}，正在加载历史记录...")
             task_id = self.task.get('task_id')
             try:
                 history_info = await get_product_history_info(task_id)
                 self.history_prices = history_info['prices']
                 self.processed_ids = history_info['processed']
-                logger.info("加载完成，已记录 {} 个已处理过的商品。", len(self.processed_ids))
+                logger.info(f"加载完成，已记录 {len(self.processed_ids)} 个已处理过的商品。")
             except Exception as e:
-                logger.error("读取历史文件时发生错误: {}", e)
+                logger.error(f"读取历史文件时发生错误: {e}")
         else:
-            logger.info("输出文件 {} 不存在，将创建新文件。", self.output_filename)
+            logger.info(f"输出文件 {self.output_filename} 不存在，将创建新文件。")
 
         return len(self.processed_ids)
 
@@ -95,17 +95,54 @@ class GoofishSpider:
         for selector, dialog_type in dialogs:
             try:
                 await page.locator(selector).wait_for(state='visible', timeout=2000)
-                logger.warning("检测到 {} 反爬虫验证弹窗", dialog_type)
+                logger.warning(f"当前页面检测到 {dialog_type} 反爬虫验证弹窗")
                 return True
             except TimeoutError:
                 pass
 
-        logger.debug("未检测到任何反爬虫验证弹窗")
+        logger.debug("当前页面未检测到任何反爬虫验证弹窗")
         return False
+
+    async def goto(self, page: Page, page_url: str):
+        await page.goto(page_url, wait_until="domcontentloaded", timeout=30000)
+
+        if await self.check_anti_spider_dialog(page):
+            raise ValidationError('反爬虫验证弹窗')
+
+        try:
+            await page.click("div[class*='closeIconBg']", delay=random.uniform(10, 20), timeout=2000)
+            logger.info("已关闭广告弹窗。")
+        except TimeoutError:
+            logger.debug("未检测到广告弹窗。")
+
+    async def goto_and_expect(self, page: Page, page_url: str, url_or_predicate):
+        async with page.expect_response(url_or_predicate, timeout=30000) as response:
+            await self.goto(page, page_url)
+            data = await (await response.value).json()
+            if "FAIL_SYS_USER_VALIDATE" in str(data):
+                raise ValidationError('FAIL_SYS_USER_VALIDATE')
+            return data
+
+    async def process_seller(self, seller_info: Seller):
+        """处理卖家信息"""
+        seller_id = seller_info['卖家ID']
+        logger.info("开始采集用户ID: {} 的完整信息...", seller_id)
+        page = await self.browser_context.new_page()
+
+        data = await self.goto_and_expect(
+            page=page,
+            page_url=f"https://www.goofish.com/personal?userId={seller_id}",
+            url_or_predicate=lambda r: "mtop.idle.web.user.page.head" in r.url
+        )
+        seller_info = pares_seller_detail_info(data, seller_info)
+
+        await random_sleep(5, 10)
+        await page.close()
+        return seller_info
 
     async def process_product_list(self, product_list: list[Locator]):
         """处理单页商品列表"""
-        logger.info("共有 {} 个商品，正在随机化处理顺序...", len(product_list))
+        logger.info(f"共有 {len(product_list)} 个商品，正在随机化处理顺序...")
         random.shuffle(product_list)
         logger.debug("随机化完成，将按随机顺序处理商品")
 
@@ -117,16 +154,16 @@ class GoofishSpider:
                 return
 
             product_url = await item.get_attribute('href')
-            logger.debug("商品连接: {}", product_url)
+            logger.debug(f"商品连接: {product_url}")
 
             product_id = extract_id_from_url_regex(product_url)
             if product_id is None:
                 logger.warning("商品id提取失败")
                 continue
-            logger.debug("商品id提取成功: {}", product_id)
+            logger.debug(f"商品id提取成功: {product_id}")
 
             if product_id in self.processed_ids:
-                logger.info("商品 {} 已处理过，跳过", product_id)
+                logger.info(f"商品 {product_id} 已处理过，跳过")
                 continue
 
             # 模拟用户操作得到新链接
@@ -135,28 +172,25 @@ class GoofishSpider:
             await item.dispatch_event('mouseup')
 
             real_url = await item.get_attribute('href')
-            logger.debug("真实点击链接: {}", real_url)
+            logger.debug(f"真实点击链接: {real_url}")
 
-            async with detail_page.expect_response(lambda r: DETAIL_API_URL_PATTERN in r.url,
-                                                   timeout=25000) as detail_info:
-                await detail_page.goto(real_url, wait_until="domcontentloaded", timeout=25000)
-                try:
-                    detail_response = await detail_info.value
-                    if detail_response.ok:
-                        await self.process_product(
-                            await detail_response.json(),
-                            {
-                                'product_id': product_id,
-                                'product_url': product_url,
-                            }
-                        )
-                        self.processed_ids.add(product_id)
-                except ValidationError as e:
-                    raise e
-                except TimeoutError:
-                    logger.warning("超时：无法获取商品 {} 的详细信息", product_id)
-                except Exception as e:
-                    logger.error("处理商品 {} 时出错：{}", product_id, e)
+            try:
+                base_product_info = {
+                    'product_id': product_id,
+                    'product_url': product_url,
+                }
+                data = await self.goto_and_expect(
+                    page=detail_page,
+                    page_url=real_url,
+                    url_or_predicate=lambda r: DETAIL_API_URL_PATTERN in r.url
+                )
+                await self.process_product(data, base_product_info)
+                self.processed_ids.add(product_id)
+
+            except TimeoutError:
+                logger.warning(f"超时：无法获取商品 {product_id} 的详细信息")
+            except Exception as e:
+                logger.error(f"处理商品 {product_id} 时出错：{e}")
 
             await random_sleep(5, 10)
 
@@ -166,12 +200,7 @@ class GoofishSpider:
     async def process_product(self, product_api_data, base_product_info):
         """处理商品详情页"""
         product_id = base_product_info.get('product_id')
-        logger.info("开始处理商品 {}", product_id)
-
-        ret_string = str(safe_get(product_api_data, 'ret', default=[]))
-
-        if "FAIL_SYS_USER_VALIDATE" in ret_string:
-            raise ValidationError('FAIL_SYS_USER_VALIDATE')
+        logger.info(f"开始处理商品 {product_id}")
 
         product_info, seller_base_info = pares_product_info_and_seller_info(product_api_data, base_product_info)
 
@@ -198,7 +227,7 @@ class GoofishSpider:
                 )
                 final_record['分析结果'] = analysis_results
             except Exception as e:
-                logger.error("AI分析出错: {}", e)
+                logger.error(f"AI分析出错: {e}")
         else:
             logger.warning("AI分析未启用或未配置")
 
@@ -208,22 +237,6 @@ class GoofishSpider:
         if self.notification_manager:
             logger.info("开始推送通知")
             self.notification_manager.notify(final_record)
-
-    async def process_seller(self, seller_info: Seller):
-        """处理卖家信息"""
-        seller_id = seller_info['卖家ID']
-        logger.info("开始采集用户ID: {} 的完整信息...", seller_id)
-        page = await self.browser_context.new_page()
-        async with page.expect_response(lambda r: "mtop.idle.web.user.page.head" in r.url,
-                                        timeout=25000) as detail_info:
-            await page.goto(f"https://www.goofish.com/personal?userId={seller_id}", wait_until="domcontentloaded",
-                            timeout=20000)
-            detail_response = await detail_info.value
-            if detail_response.ok:
-                seller_info = pares_seller_detail_info(await detail_response.json(), seller_info)
-        await random_sleep(5, 10)
-        await page.close()
-        return seller_info
 
     async def run(self):
         """执行爬虫任务"""
@@ -263,19 +276,10 @@ class GoofishSpider:
                 logger.info("步骤 1 - 直接导航到搜索结果页...")
                 params = {'q': keyword}
                 search_url = f"https://www.goofish.com/search?{urlencode(params)}&spm=a21ybx.home.searchInput.0"
-                logger.debug("目标URL: {}", search_url)
+                logger.debug(f"目标URL: {search_url}")
 
-                await page.goto(search_url, wait_until="domcontentloaded", timeout=60000)
+                await self.goto(page, search_url)
                 await page.wait_for_selector('text=新发布', timeout=15000)
-
-                if await self.check_anti_spider_dialog(page):
-                    raise ValidationError('反爬虫验证弹窗')
-
-                try:
-                    await page.click("div[class*='closeIconBg']", delay=random.uniform(10, 20), timeout=3000)
-                    logger.info("已关闭广告弹窗。")
-                except TimeoutError:
-                    logger.debug("未检测到广告弹窗。")
 
                 logger.info("步骤 2 - 应用筛选条件...")
 
@@ -293,14 +297,19 @@ class GoofishSpider:
                 if min_price or max_price:
                     price_container = page.locator('div[class*="search-price-input-container"]').first
                     if await price_container.is_visible():
+                        price_inputs = price_container.get_by_placeholder("¥")
                         if min_price:
-                            await price_container.get_by_placeholder("¥").first.fill(min_price)
+                            min_price_input = price_inputs.first
+                            await min_price_input.click(delay=random.uniform(10, 20))
+                            await min_price_input.fill(min_price)
                             await random_sleep(1, 2.5)
-                            logger.debug("设置最低价格: {}", min_price)
+                            logger.debug(f"设置最低价格: {min_price}")
                         if max_price:
-                            await price_container.get_by_placeholder("¥").nth(1).fill(max_price)
+                            max_price_input = price_inputs.nth(1)
+                            await max_price_input.click(delay=random.uniform(10, 20))
+                            await max_price_input.fill(max_price)
                             await random_sleep(1, 2.5)
-                            logger.debug("设置最高价格: {}", max_price)
+                            logger.debug(f"设置最高价格: {max_price}")
 
                         await page.keyboard.press('Tab')
                         await random_sleep(4, 7)
@@ -317,11 +326,11 @@ class GoofishSpider:
                 o_max_page = self.get_max_page(page_tiny)
                 max_page = min(o_max_page, max_pages)
 
-                logger.info("共有 {} 页，设置最大处理 {} 页，实际需处理 {} 页", o_max_page, max_pages, max_page)
+                logger.info(f"共有 {o_max_page} 页，设置最大处理 {max_pages} 页，实际需处理 {max_page} 页")
 
                 for page_num in range(1, max_pages + 1):
                     try:
-                        logger.info("正在处理第 {}/{} 页", page_num, max_pages)
+                        logger.info(f"正在处理第 {page_num}/{max_pages} 页")
                         await page_btn[page_num - 1].click(delay=random.uniform(10, 20))
                         await random_sleep(10, 20)
                         product_list = await page.locator('a[class*="feeds-item-wrap"]').all()
@@ -329,24 +338,24 @@ class GoofishSpider:
                     except ValidationError as e:
                         raise e
                     except Exception as e:
-                        logger.error("第 {}/{} 页处理失败: {}", page_num, max_pages, e)
+                        logger.error(f"第 {page_num}/{max_pages} 页处理失败: {e}")
 
             except ValidationError as e:
                 logger.error("==================== CRITICAL BLOCK DETECTED ====================")
-                logger.error("检测到闲鱼反爬虫验证 ({})，程序将终止。", e)
+                logger.error(f"检测到闲鱼反爬虫验证 ({e})，程序将终止。")
                 long_sleep_duration = random.randint(300, 600)
-                logger.warning("为避免账户风险，将执行一次长时间休眠 ({} 秒) 后再退出...", long_sleep_duration)
+                logger.warning(f"为避免账户风险，将执行一次长时间休眠 ({long_sleep_duration} 秒) 后再退出...")
                 await asyncio.sleep(long_sleep_duration)
                 logger.info("长时间休眠结束，现在将安全退出。")
                 logger.error("===================================================================")
                 logger.info("触发闲鱼反爬虫机制，将关闭浏览器")
             except Exception as e:
-                logger.error("程序发生错误: {}", e)
+                logger.error(f"程序发生错误: {e}")
 
             await self.browser.close()
 
         new_processed_count = len(self.processed_ids) - last_processed_count
-        logger.info("任务完成，本次运行共处理了 {} 个新商品", new_processed_count)
+        logger.info(f"任务完成，本次运行共处理了 {new_processed_count} 个新商品")
         return new_processed_count
 
 
@@ -366,7 +375,7 @@ async def main(debug: bool = False):
         logger.info("DEBUG模式已启用")
 
     if not os.path.exists(STATE_FILE):
-        logger.warning("登录状态文件 '{}' 不存在", STATE_FILE)
+        logger.warning(f"登录状态文件 '{STATE_FILE}' 不存在")
 
     tasks = await get_all_tasks()
 
@@ -379,11 +388,11 @@ async def main(debug: bool = False):
             sys.exit(f"错误: 任务 '{args.task_id}' 不存在")
 
         active_tasks.append(task)
-        logger.info("将执行单个任务: {} (ID: {})", task['task_name'], args.task_id)
+        logger.info(f"将执行单个任务: {task['task_name']} (ID: {args.task_id})")
 
     else:
         active_tasks = [task for task in tasks if task.get('enabled', False)]
-        logger.info("找到 {} 个启用的任务", len(active_tasks))
+        logger.info(f"找到 {len(active_tasks)} 个启用的任务")
 
     if not active_tasks:
         logger.info("没有需要执行的任务，程序退出。")
@@ -401,7 +410,7 @@ async def main(debug: bool = False):
 
     coroutines = []
     for task in active_tasks:
-        logger.info("任务 '{}' 已加入执行队列。", task['task_name'])
+        logger.info(f"任务 '{task['task_name']}' 已加入执行队列。")
         spider = GoofishSpider(
             task=task,
             notification_manager=notification_manager,
@@ -419,9 +428,9 @@ async def main(debug: bool = False):
     for i, result in enumerate(results):
         task_name = active_tasks[i]['task_name']
         if isinstance(result, Exception):
-            logger.error("任务 '{}' 因异常而终止: {}", task_name, result)
+            logger.error(f"任务 '{task_name}' 因异常而终止: {result}")
         else:
-            logger.info("任务 '{}' 正常结束，本次运行共处理了 {} 个新商品。", task_name, result)
+            logger.info(f"任务 '{task_name}' 正常结束，本次运行共处理了 {result} 个新商品。")
 
 
 if __name__ == "__main__":
