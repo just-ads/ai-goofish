@@ -129,6 +129,11 @@ async def api_get_task(task_id: int):
         if not task:
             raise HTTPException(status_code=404, detail=f"任务 {task_id} 未找到")
 
+        task_state = get_task_status(task_id)
+        task.update(task_state)
+        task_record = await get_task_record(task_id)
+        task['run_record'] = task_record
+
         return success_response("任务获取成功", task)
     except HTTPException:
         raise
