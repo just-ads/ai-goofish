@@ -13,8 +13,7 @@
 
 ### 2. 主页
 
-<img width="1322" height="681" alt="image" src="https://github.com/user-attachments/assets/04f5d6c8-b71a-4730-814c-42f8da65d925" />
-
+<img width="1322" height="681" alt="image" src="https://github.com/user-attachments/assets/e974dbfa-18c7-4a2f-b490-6a547eada1e9" />
 
 ### 3. 结果查看
 
@@ -26,10 +25,17 @@
 
 ### 4. 设置页
 
-<div style="display: flex; overflow: scroll">
-  <img width="661" alt="image" src="https://github.com/user-attachments/assets/0ba38c41-c419-4f57-93ad-2d0adad002a4" />
-  <img width="661" alt="image" src="https://github.com/user-attachments/assets/7ef97e96-6729-4f73-9abd-7585f146a1e9" />
-</div>
+<pre>
+  <img width="661" alt="image" src="https://github.com/user-attachments/assets/0ba38c41-c419-4f57-93ad-2d0adad002a4" /> <img width="661" alt="image" src="https://github.com/user-attachments/assets/7ef97e96-6729-4f73-9abd-7585f146a1e9" />
+</pre>
+
+<details open>
+  <summary>移动端界面</summary>
+
+  <pre>
+    <img width="390" height="844" alt="image" src="https://github.com/user-attachments/assets/1f7462c8-5692-4db3-b562-0e7834227c4b" /> <img width="390" height="844" alt="image" src="https://github.com/user-attachments/assets/ef61f580-7265-44cc-8cc5-091dc1b5cdf6" /> <img width="390" height="844" alt="image" src="https://github.com/user-attachments/assets/ab2af898-7970-4c1c-b5d9-6ba86dd38c4f" />
+  </pre>
+</details>
 
 
 ------------------------------------------------------------------------
