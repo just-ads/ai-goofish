@@ -347,6 +347,8 @@ class GoofishSpider:
                     except Exception as e:
                         logger.error(f"第 {page_num}/{max_pages} 页处理失败: {e}")
 
+                await self.browser.close()
+
         except ValidationError as e:
             logger.error("==================== CRITICAL BLOCK DETECTED ====================")
             logger.error(f"检测到闲鱼反爬虫验证 ({e})，程序将终止。")
@@ -360,8 +362,6 @@ class GoofishSpider:
         except Exception as e:
             logger.error(f"程序发生错误: {e}")
             ret_type = 'abnormal'
-
-        await self.browser.close()
 
         new_processed_count = len(self.processed_ids) - last_processed_count
         logger.info(f"任务完成，本次运行共处理了 {new_processed_count} 个新商品")

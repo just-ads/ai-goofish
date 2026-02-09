@@ -26,6 +26,62 @@ semaphore = asyncio.Semaphore(MAX_CONCURRENT_TASKS)
 MAX_LOG_SIZE = 512 * 1024  # 512K
 
 
+# ==================== Unix 僵尸进程收割机制 ====================
+# Windows 无僵尸进程概念，以下函数仅在 Unix 上生效
+
+def _setup_zombie_reaper():
+    """初始化僵尸进程收割机制（仅 Unix）
+
+    在 Unix 上设置:
+    1. SIGCHLD 信号处理器 - 即时收割退出的子进程
+    2. zombie_reaper 协程 - 定时轮询兜底收割
+
+    Windows 上此函数为空操作。
+    """
+    if sys.platform == "win32":
+        return
+
+    # 设置 SIGCHLD 信号处理器
+    def sigchld_handler(signum, frame):
+        """SIGCHLD 信号处理器：立即收割已退出的子进程"""
+        while True:
+            try:
+                pid, status = os.waitpid(-1, os.WNOHANG)
+                if pid == 0:
+                    break
+                logger.debug(f"SIGCHLD: 已收割进程 PID {pid}, 退出状态 {status}")
+            except ChildProcessError:
+                break
+            except Exception:
+                break
+
+    signal.signal(signal.SIGCHLD, sigchld_handler)
+    logger.info("已安装 SIGCHLD 信号处理器")
+
+    # 启动定时收割协程
+    asyncio.create_task(_zombie_reaper_loop())
+    logger.info("已启动僵尸进程收割协程")
+
+
+async def _zombie_reaper_loop():
+    """定期清理僵尸进程的后台任务（仅 Unix 内部使用）"""
+    while True:
+        try:
+            while True:
+                pid, status = os.waitpid(-1, os.WNOHANG)
+                if pid == 0:
+                    break
+                logger.debug(f"已收割僵尸进程: PID {pid}, 退出状态 {status}")
+        except ChildProcessError:
+            pass
+        except Exception as e:
+            logger.error(f"收割僵尸进程时出错: {e}")
+
+        await asyncio.sleep(30)
+
+
+# ==================== 进程管理工具函数 ====================
+
 def _is_process_alive(pid: Optional[int]) -> bool:
     if not pid:
         return False
@@ -36,40 +92,31 @@ def _is_process_alive(pid: Optional[int]) -> bool:
         return False
 
 
-def _kill_session(sid: int, sig: int) -> int:
-    """Send a signal to all processes in a POSIX session.
-
-    This is stronger than killpg(): some process trees (e.g. Chromium) may spawn
-    additional process groups within the same session.
-
-    Returns number of processes signaled (best effort).
-    """
-
+def _wait_for_process_exit(pid: int, timeout: float = 3.0) -> bool:
+    """等待进程退出并收割，返回是否成功收割。仅 Unix 有效。"""
     if sys.platform == "win32":
-        return 0
+        return True  # Windows 无僵尸进程问题
 
-    proc_root = "/proc"
-    if not os.path.isdir(proc_root):
-        return 0
-
-    signaled = 0
-    for name in os.listdir(proc_root):
-        if not name.isdigit():
-            continue
-        pid = int(name)
+    import time
+    start = time.monotonic()
+    while time.monotonic() - start < timeout:
         try:
-            if os.getsid(pid) != sid:
+            wpid, status = os.waitpid(pid, os.WNOHANG)
+            if wpid == pid:
+                logger.debug(f"进程 {pid} 已收割，退出状态: {status}")
+                return True
+            if wpid == 0:
+                # 进程还在运行，短暂等待后重试
+                time.sleep(0.1)
                 continue
-            os.kill(pid, sig)
-            signaled += 1
-        except ProcessLookupError:
-            continue
-        except PermissionError:
-            continue
-        except Exception:
-            continue
-
-    return signaled
+        except ChildProcessError:
+            # 不是我们的子进程或已被收割
+            logger.debug(f"进程 {pid} 不是子进程或已被收割")
+            return True
+        except Exception as e:
+            logger.warning(f"waitpid({pid}) 出错: {e}")
+            return False
+    return False
 
 
 def terminate_process(task_id: int) -> bool:
@@ -93,97 +140,40 @@ def terminate_process(task_id: int) -> bool:
 
     try:
         if sys.platform == "win32":
-            # Windows: 直接使用 taskkill，更可靠
+            # Windows: 使用 taskkill 终止进程树，无僵尸进程问题
             try:
                 subprocess.run(
                     ["taskkill", "/PID", str(pid), "/T", "/F"],
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
-                    check=True,
-                    timeout=3
+                    timeout=5
                 )
                 logger.debug(f"Windows: 使用 taskkill 终止进程 {pid}")
             except subprocess.TimeoutExpired:
-                logger.warning(f"taskkill 超时，尝试强制终止")
-                subprocess.run(
-                    ["taskkill", "/PID", str(pid), "/T", "/F"],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL
-                )
+                logger.warning(f"taskkill 超时")
             except Exception as e:
                 logger.warning(f"taskkill 失败: {e}")
         else:
-            # Unix: 尝试优雅终止，然后强制终止
+            # Unix: 终止进程并收割
             try:
-                pgid: Optional[int] = None
-                sid: Optional[int] = None
-                try:
-                    pgid = os.getpgid(pid)
-                except Exception:
-                    pgid = None
-                try:
-                    sid = os.getsid(pid)
-                except Exception:
-                    sid = None
+                os.kill(pid, signal.SIGTERM)
+                logger.debug(f"Unix: 发送 SIGTERM 到进程 {pid}")
 
-                # 先尝试 SIGTERM（优先杀整个进程组，避免遗留 Playwright/Chromium 子进程）
-                if pgid is not None:
-                    os.killpg(pgid, signal.SIGTERM)
-                    logger.debug(f"Unix: 发送 SIGTERM 到进程组 {pgid} (leader PID={pid})")
-                else:
-                    os.kill(pid, signal.SIGTERM)
-                    logger.debug(f"Unix: 发送 SIGTERM 到进程 {pid}")
-
-                if sid is not None:
-                    n = _kill_session(sid, signal.SIGTERM)
-                    logger.debug(f"Unix: 发送 SIGTERM 到会话 {sid}，影响进程数={n}")
-
-                # 等待进程退出
-                try:
-                    os.waitpid(pid, os.WNOHANG)
-                except ChildProcessError:
-                    pass
-
-                # 若仍存活，尝试 SIGKILL（同样优先杀进程组）
-                if _is_process_alive(pid):
+                # 等待进程退出并收割
+                if not _wait_for_process_exit(pid, timeout=2.0):
+                    # 超时未退出，发送 SIGKILL
+                    logger.warning(f"进程 {pid} 未响应 SIGTERM，发送 SIGKILL")
                     try:
-                        if pgid is not None:
-                            os.killpg(pgid, signal.SIGKILL)
-                            logger.debug(f"Unix: 发送 SIGKILL 到进程组 {pgid} (leader PID={pid})")
-                        else:
-                            os.kill(pid, signal.SIGKILL)
-                            logger.debug(f"Unix: 发送 SIGKILL 到进程 {pid}")
-
-                        if sid is not None:
-                            n = _kill_session(sid, signal.SIGKILL)
-                            logger.debug(f"Unix: 发送 SIGKILL 到会话 {sid}，影响进程数={n}")
+                        os.kill(pid, signal.SIGKILL)
                     except ProcessLookupError:
                         pass
+                    # 再次等待收割
+                    _wait_for_process_exit(pid, timeout=1.0)
 
             except ProcessLookupError:
                 logger.debug(f"进程 {pid} 已不存在")
             except Exception as e:
-                logger.warning(f"SIGTERM 失败: {e}, 尝试 SIGKILL")
-                try:
-                    try:
-                        pgid = os.getpgid(pid)
-                    except Exception:
-                        pgid = None
-
-                    try:
-                        sid = os.getsid(pid)
-                    except Exception:
-                        sid = None
-
-                    if pgid is not None:
-                        os.killpg(pgid, signal.SIGKILL)
-                    else:
-                        os.kill(pid, signal.SIGKILL)
-
-                    if sid is not None:
-                        _kill_session(sid, signal.SIGKILL)
-                except ProcessLookupError:
-                    pass
+                logger.warning(f"终止进程失败: {e}")
     except Exception as e:
         logger.error(f"终止进程 {pid} 时发生错误: {e}")
     finally:
@@ -204,6 +194,7 @@ async def initialize_task_scheduler():
 
         if not scheduler.running:
             scheduler.start()
+            _setup_zombie_reaper()  # 初始化僵尸进程收割机制（仅 Unix 生效）
             logger.info("调度器已启动")
         else:
             logger.warning("调度器已在运行状态")
@@ -296,7 +287,6 @@ async def run_task(task_id: int, task_name: str):
             with open(logs_file, 'a') as f:
                 process = await asyncio.create_subprocess_exec(
                     sys.executable, "-u", "start_spider.py", "--task-id", str(task_id),
-                    start_new_session=True,
                     stdout=f.fileno(),
                     stderr=asyncio.subprocess.STDOUT
                 )
@@ -306,17 +296,6 @@ async def run_task(task_id: int, task_name: str):
             logger.info(f"子进程命令: {sys.executable} -u start_spider.py --task-id {task_id}")
 
             return_code = await process.wait()
-
-            if sys.platform != "win32":
-                sid = process.pid
-                try:
-                    n = _kill_session(sid, signal.SIGTERM)
-                    if n:
-                        await asyncio.sleep(0.5)
-                        _kill_session(sid, signal.SIGKILL)
-                except Exception:
-                    pass
-
             execution_time = asyncio.get_event_loop().time() - start_time
 
             if return_code == 0:
