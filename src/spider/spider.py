@@ -95,7 +95,7 @@ class GoofishSpider:
 
         for selector, dialog_type in dialogs:
             try:
-                await page.locator(selector).wait_for(state='visible')
+                await page.locator(selector).wait_for(state='visible', timeout=5_000)
                 logger.warning(f"当前页面检测到 {dialog_type} 反爬虫验证弹窗")
                 return True
             except TimeoutError:
@@ -117,7 +117,7 @@ class GoofishSpider:
             logger.debug("未检测到广告弹窗。")
 
     async def goto_and_expect(self, page: Page, page_url: str, url_or_predicate):
-        async with page.expect_response(url_or_predicate) as response:
+        async with page.expect_response(url_or_predicate, timeout=60_000) as response:
             await self.goto(page, page_url)
             data = await (await response.value).json()
             if "FAIL_SYS_USER_VALIDATE" in str(data):
@@ -190,6 +190,8 @@ class GoofishSpider:
 
             except TimeoutError:
                 logger.warning(f"超时：无法获取商品 {product_id} 的详细信息")
+            except ValidationError:
+                raise
             except Exception as e:
                 logger.error(f"处理商品 {product_id} 时出错：{e}")
 
@@ -340,10 +342,10 @@ class GoofishSpider:
                         await random_sleep(10, 20)
                         product_list = await page.locator('a[class*="feeds-item-wrap"]').all()
                         await self.process_product_list(product_list)
+                    except ValidationError:
+                        raise
                     except Exception as e:
                         logger.error(f"第 {page_num}/{max_pages} 页处理失败: {e}")
-
-            await self.browser.close()
 
         except ValidationError as e:
             logger.error("==================== CRITICAL BLOCK DETECTED ====================")
@@ -358,6 +360,8 @@ class GoofishSpider:
         except Exception as e:
             logger.error(f"程序发生错误: {e}")
             ret_type = 'abnormal'
+
+        await self.browser.close()
 
         new_processed_count = len(self.processed_ids) - last_processed_count
         logger.info(f"任务完成，本次运行共处理了 {new_processed_count} 个新商品")
