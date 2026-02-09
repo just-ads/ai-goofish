@@ -95,7 +95,7 @@ class GoofishSpider:
 
         for selector, dialog_type in dialogs:
             try:
-                await page.locator(selector).wait_for(state='visible', timeout=2000)
+                await page.locator(selector).wait_for(state='visible')
                 logger.warning(f"当前页面检测到 {dialog_type} 反爬虫验证弹窗")
                 return True
             except TimeoutError:
@@ -105,19 +105,19 @@ class GoofishSpider:
         return False
 
     async def goto(self, page: Page, page_url: str):
-        await page.goto(page_url, wait_until="domcontentloaded", timeout=30000)
+        await page.goto(page_url, wait_until="domcontentloaded")
 
         if await self.check_anti_spider_dialog(page):
             raise ValidationError('反爬虫验证弹窗')
 
         try:
-            await page.click("div[class*='closeIconBg']", delay=random.uniform(10, 20), timeout=2000)
+            await page.click("div[class*='closeIconBg']", delay=random.uniform(10, 20))
             logger.info("已关闭广告弹窗。")
         except TimeoutError:
             logger.debug("未检测到广告弹窗。")
 
     async def goto_and_expect(self, page: Page, page_url: str, url_or_predicate):
-        async with page.expect_response(url_or_predicate, timeout=30000) as response:
+        async with page.expect_response(url_or_predicate) as response:
             await self.goto(page, page_url)
             data = await (await response.value).json()
             if "FAIL_SYS_USER_VALIDATE" in str(data):
@@ -274,6 +274,8 @@ class GoofishSpider:
                     permissions=["notifications"]
                 )
 
+                self.browser_context.set_default_timeout(30_000)
+
                 page = await self.browser_context.new_page()
 
                 logger.info("步骤 1 - 直接导航到搜索结果页...")
@@ -282,7 +284,7 @@ class GoofishSpider:
                 logger.debug(f"目标URL: {search_url}")
 
                 await self.goto(page, search_url)
-                await page.wait_for_selector('text=新发布', timeout=15000)
+                await page.wait_for_selector('text=新发布')
 
                 logger.info("步骤 2 - 应用筛选条件...")
 

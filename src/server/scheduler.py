@@ -12,6 +12,7 @@ from apscheduler.triggers.cron import CronTrigger
 from src.env import MAX_CONCURRENT_TASKS
 from src.task.logs import get_logs_file_name, trim_log_file
 from src.task.task import get_tasks, Task
+from src.utils.date import now_str
 from src.utils.logger import logger
 
 # 任务进程表与运行状态缓存
@@ -182,7 +183,7 @@ def get_all_running_tasks() -> dict[int, bool]:
 async def run_task(task_id: int, task_name: str):
     start_time = asyncio.get_event_loop().time()
     logger.info(f"定时任务触发: 正在为任务 '{task_name}' (ID: {task_id}) 启动爬虫...")
-    logger.info(f"任务执行开始时间: {__import__('datetime').datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    logger.info(f"任务执行开始时间: {now_str()}")
 
     if is_task_running(task_id):
         logger.warning(f"任务 '{task_name}' (ID: {task_id}) 已在运行中，跳过此次执行")
