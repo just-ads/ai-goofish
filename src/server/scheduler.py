@@ -36,6 +36,42 @@ def _is_process_alive(pid: Optional[int]) -> bool:
         return False
 
 
+def _kill_session(sid: int, sig: int) -> int:
+    """Send a signal to all processes in a POSIX session.
+
+    This is stronger than killpg(): some process trees (e.g. Chromium) may spawn
+    additional process groups within the same session.
+
+    Returns number of processes signaled (best effort).
+    """
+
+    if sys.platform == "win32":
+        return 0
+
+    proc_root = "/proc"
+    if not os.path.isdir(proc_root):
+        return 0
+
+    signaled = 0
+    for name in os.listdir(proc_root):
+        if not name.isdigit():
+            continue
+        pid = int(name)
+        try:
+            if os.getsid(pid) != sid:
+                continue
+            os.kill(pid, sig)
+            signaled += 1
+        except ProcessLookupError:
+            continue
+        except PermissionError:
+            continue
+        except Exception:
+            continue
+
+    return signaled
+
+
 def terminate_process(task_id: int) -> bool:
     """终止指定 task_id 的子进程；返回值表示**此前**该任务是否处于运行状态。"""
     pid = scraper_processes.get(task_id)
@@ -79,9 +115,28 @@ def terminate_process(task_id: int) -> bool:
         else:
             # Unix: 尝试优雅终止，然后强制终止
             try:
-                # 先尝试 SIGTERM
-                os.kill(pid, signal.SIGTERM)
-                logger.debug(f"Unix: 发送 SIGTERM 到进程 {pid}")
+                pgid: Optional[int] = None
+                sid: Optional[int] = None
+                try:
+                    pgid = os.getpgid(pid)
+                except Exception:
+                    pgid = None
+                try:
+                    sid = os.getsid(pid)
+                except Exception:
+                    sid = None
+
+                # 先尝试 SIGTERM（优先杀整个进程组，避免遗留 Playwright/Chromium 子进程）
+                if pgid is not None:
+                    os.killpg(pgid, signal.SIGTERM)
+                    logger.debug(f"Unix: 发送 SIGTERM 到进程组 {pgid} (leader PID={pid})")
+                else:
+                    os.kill(pid, signal.SIGTERM)
+                    logger.debug(f"Unix: 发送 SIGTERM 到进程 {pid}")
+
+                if sid is not None:
+                    n = _kill_session(sid, signal.SIGTERM)
+                    logger.debug(f"Unix: 发送 SIGTERM 到会话 {sid}，影响进程数={n}")
 
                 # 等待进程退出
                 try:
@@ -89,12 +144,44 @@ def terminate_process(task_id: int) -> bool:
                 except ChildProcessError:
                     pass
 
+                # 若仍存活，尝试 SIGKILL（同样优先杀进程组）
+                if _is_process_alive(pid):
+                    try:
+                        if pgid is not None:
+                            os.killpg(pgid, signal.SIGKILL)
+                            logger.debug(f"Unix: 发送 SIGKILL 到进程组 {pgid} (leader PID={pid})")
+                        else:
+                            os.kill(pid, signal.SIGKILL)
+                            logger.debug(f"Unix: 发送 SIGKILL 到进程 {pid}")
+
+                        if sid is not None:
+                            n = _kill_session(sid, signal.SIGKILL)
+                            logger.debug(f"Unix: 发送 SIGKILL 到会话 {sid}，影响进程数={n}")
+                    except ProcessLookupError:
+                        pass
+
             except ProcessLookupError:
                 logger.debug(f"进程 {pid} 已不存在")
             except Exception as e:
                 logger.warning(f"SIGTERM 失败: {e}, 尝试 SIGKILL")
                 try:
-                    os.kill(pid, signal.SIGKILL)
+                    try:
+                        pgid = os.getpgid(pid)
+                    except Exception:
+                        pgid = None
+
+                    try:
+                        sid = os.getsid(pid)
+                    except Exception:
+                        sid = None
+
+                    if pgid is not None:
+                        os.killpg(pgid, signal.SIGKILL)
+                    else:
+                        os.kill(pid, signal.SIGKILL)
+
+                    if sid is not None:
+                        _kill_session(sid, signal.SIGKILL)
                 except ProcessLookupError:
                     pass
     except Exception as e:
@@ -219,6 +306,17 @@ async def run_task(task_id: int, task_name: str):
             logger.info(f"子进程命令: {sys.executable} -u start_spider.py --task-id {task_id}")
 
             return_code = await process.wait()
+
+            if sys.platform != "win32":
+                sid = process.pid
+                try:
+                    n = _kill_session(sid, signal.SIGTERM)
+                    if n:
+                        await asyncio.sleep(0.5)
+                        _kill_session(sid, signal.SIGKILL)
+                except Exception:
+                    pass
+
             execution_time = asyncio.get_event_loop().time() - start_time
 
             if return_code == 0:
