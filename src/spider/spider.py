@@ -128,6 +128,7 @@ class GoofishSpider:
                 data = await asyncio.wait_for(response.json(), timeout=2)
             except asyncio.TimeoutError:
                 os.makedirs('data/debug', exist_ok=True)
+                await page.screenshot(path="data/debug/screenshot.png")
                 await page.close()
                 raise ValidationError('body 解析超时')
             if "FAIL_SYS_USER_VALIDATE" in str(data):
