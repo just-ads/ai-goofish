@@ -119,10 +119,13 @@ class GoofishSpider:
             logger.info("未检测到广告弹窗。")
 
     async def goto_and_expect(self, page: Page, page_url: str, url_or_predicate):
-        response_task = page.expect_response(url_or_predicate, timeout=60000)
+        response_task = page.expect_response(url_or_predicate, timeout=60_000)
         await self.goto(page, page_url)
+        logger.warning('开始监听响应')
         async with response_task as response_info:
+            logger.warning('开始监听响应...')
             response = await response_info.value
+            logger.warning(f'响应: {response}')
             try:
                 # 防止 body 读取阶段卡死, 反爬虫机制响应 header 成功但 body 永远传不完
                 data = await asyncio.wait_for(response.json(), timeout=200)
