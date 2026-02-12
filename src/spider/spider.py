@@ -296,12 +296,11 @@ class GoofishSpider:
                     logger.debug(f"目标URL: {search_url}")
 
                     await self.goto(page, search_url)
-                    await page.wait_for_selector('text=新发布')
 
                     logger.info("步骤 2 - 应用筛选条件...")
 
                     await page.hover('text=新发布')
-                    await random_sleep(0.5, 2)
+                    await random_sleep(1, 3)
 
                     await page.click('text=最新', delay=random.uniform(10, 20))
                     await random_sleep(3, 5)
