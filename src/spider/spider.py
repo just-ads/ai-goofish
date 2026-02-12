@@ -201,6 +201,7 @@ class GoofishSpider:
 
             except TimeoutError:
                 logger.warning(f"超时：无法获取商品 {product_id} 的详细信息")
+                await detail_page.screenshot(path="data/debug/out_screenshot.png")
             except ValidationError:
                 raise
             except Exception as e:
