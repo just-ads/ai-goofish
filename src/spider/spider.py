@@ -113,7 +113,7 @@ class GoofishSpider:
             raise ValidationError('反爬虫验证弹窗')
 
         try:
-            await page.click("div[class*='closeIconBg']", delay=random.uniform(10, 20), timeout=3_000)
+            await page.click("div[class*='closeIconBg']", delay=random.uniform(10, 20), timeout=15_000)
             logger.info("已关闭广告弹窗。")
         except TimeoutError:
             logger.info("未检测到广告弹窗。")
