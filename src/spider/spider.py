@@ -97,9 +97,9 @@ class GoofishSpider:
 
         for selector, dialog_type in dialogs:
             try:
-                await page.locator(selector).is_visible()
-                logger.warning(f"当前页面检测到 {dialog_type} 反爬虫验证弹窗")
-                return True
+                if await page.locator(selector).is_visible(timeout=2_000):
+                    logger.warning(f"当前页面检测到 {dialog_type} 反爬虫验证弹窗")
+                    return True
             except TimeoutError:
                 pass
 
@@ -251,122 +251,125 @@ class GoofishSpider:
 
     async def run(self) -> Tuple[Literal['normal', 'abnormal', 'risk'], int]:
         """执行爬虫任务"""
-        keyword = self.task.get('keyword')
-        max_pages = self.task.get('max_pages', 1)
-        personal_only = self.task.get('personal_only', False)
-        min_price = self.task.get('min_price')
-        max_price = self.task.get('max_price')
-
-        last_processed_count = await self.get_history()
-
-        ret_type: Literal['normal', 'abnormal', 'risk'] = 'normal'
+        last_processed_count = 0
 
         try:
+            keyword = self.task.get('keyword')
+            max_pages = self.task.get('max_pages', 1)
+            personal_only = self.task.get('personal_only', False)
+            min_price = self.task.get('min_price')
+            max_price = self.task.get('max_price')
+
+            last_processed_count = await self.get_history()
+
+            ret_type: Literal['normal', 'abnormal', 'risk'] = 'normal'
             async with async_playwright() as p:
-                # 尽量模拟真实浏览器，不要使用 js 打补丁的方式
-                self.browser = await p.chromium.launch(
-                    headless=self.browser_headless,
-                    channel=self.browser_channel
-                )
-                version = self.browser.version
-                # 使用真实版本号
-                user_agent = f'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{version.split('.')[0]} Safari/537.36'
-                self.browser_context = await self.browser.new_context(
-                    storage_state=self.state_file,
-                    viewport={"width": 1920, "height": 957},
-                    screen={'width': 1920, 'height': 1080},
-                    device_scale_factor=1.0,
-                    user_agent=user_agent,
-                    is_mobile=False,
-                    has_touch=False,
-                    locale='zh-CN',
-                    timezone_id='Asia/Shanghai',
-                    permissions=["notifications"]
-                )
+                try:
+                    # 尽量模拟真实浏览器，不要使用 js 打补丁的方式
+                    self.browser = await p.chromium.launch(
+                        headless=self.browser_headless,
+                        channel=self.browser_channel
+                    )
+                    version = self.browser.version
+                    # 使用真实版本号
+                    user_agent = f'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{version.split('.')[0]} Safari/537.36'
+                    self.browser_context = await self.browser.new_context(
+                        storage_state=self.state_file,
+                        viewport={"width": 1920, "height": 957},
+                        screen={'width': 1920, 'height': 1080},
+                        device_scale_factor=1.0,
+                        user_agent=user_agent,
+                        is_mobile=False,
+                        has_touch=False,
+                        locale='zh-CN',
+                        timezone_id='Asia/Shanghai',
+                        permissions=["notifications"]
+                    )
 
-                self.browser_context.set_default_timeout(30_000)
+                    self.browser_context.set_default_timeout(30_000)
 
-                page = await self.browser_context.new_page()
+                    page = await self.browser_context.new_page()
 
-                logger.info("步骤 1 - 直接导航到搜索结果页...")
-                params = {'q': keyword}
-                search_url = f"https://www.goofish.com/search?{urlencode(params)}&spm=a21ybx.home.searchInput.0"
-                logger.debug(f"目标URL: {search_url}")
+                    logger.info("步骤 1 - 直接导航到搜索结果页...")
+                    params = {'q': keyword}
+                    search_url = f"https://www.goofish.com/search?{urlencode(params)}&spm=a21ybx.home.searchInput.0"
+                    logger.debug(f"目标URL: {search_url}")
 
-                await self.goto(page, search_url)
-                await page.wait_for_selector('text=新发布')
+                    await self.goto(page, search_url)
+                    await page.wait_for_selector('text=新发布')
 
-                logger.info("步骤 2 - 应用筛选条件...")
+                    logger.info("步骤 2 - 应用筛选条件...")
 
-                await page.hover('text=新发布')
-                await random_sleep(0.5, 2)
+                    await page.hover('text=新发布')
+                    await random_sleep(0.5, 2)
 
-                await page.click('text=最新', delay=random.uniform(10, 20))
-                await random_sleep(3, 5)
+                    await page.click('text=最新', delay=random.uniform(10, 20))
+                    await random_sleep(3, 5)
 
-                if personal_only:
-                    await page.click('text=个人闲置', delay=random.uniform(10, 20))
-                    await random_sleep(2, 4)
-                    logger.debug("已筛选个人闲置商品")
+                    if personal_only:
+                        await page.click('text=个人闲置', delay=random.uniform(10, 20))
+                        await random_sleep(2, 4)
+                        logger.debug("已筛选个人闲置商品")
 
-                if min_price or max_price:
-                    price_container = page.locator('div[class*="search-price-input-container"]').first
-                    if await price_container.is_visible():
-                        price_inputs = price_container.get_by_placeholder("¥")
-                        if min_price:
-                            min_price_input = price_inputs.first
-                            await min_price_input.click(delay=random.uniform(10, 20))
-                            await min_price_input.fill(min_price)
-                            await random_sleep(1, 2.5)
-                            logger.debug(f"设置最低价格: {min_price}")
-                        if max_price:
-                            max_price_input = price_inputs.nth(1)
-                            await max_price_input.click(delay=random.uniform(10, 20))
-                            await max_price_input.fill(max_price)
-                            await random_sleep(1, 2.5)
-                            logger.debug(f"设置最高价格: {max_price}")
+                    if min_price or max_price:
+                        price_container = page.locator('div[class*="search-price-input-container"]').first
+                        if await price_container.is_visible():
+                            price_inputs = price_container.get_by_placeholder("¥")
+                            if min_price:
+                                min_price_input = price_inputs.first
+                                await min_price_input.click(delay=random.uniform(10, 20))
+                                await min_price_input.fill(min_price)
+                                await random_sleep(1, 2.5)
+                                logger.debug(f"设置最低价格: {min_price}")
+                            if max_price:
+                                max_price_input = price_inputs.nth(1)
+                                await max_price_input.click(delay=random.uniform(10, 20))
+                                await max_price_input.fill(max_price)
+                                await random_sleep(1, 2.5)
+                                logger.debug(f"设置最高价格: {max_price}")
 
-                        await page.keyboard.press('Tab')
-                        await random_sleep(4, 7)
-                        logger.debug("价格筛选已应用")
+                            await page.keyboard.press('Tab')
+                            await random_sleep(4, 7)
+                            logger.debug("价格筛选已应用")
 
-                    else:
-                        logger.warning("未找到价格输入容器。")
+                        else:
+                            logger.warning("未找到价格输入容器。")
 
-                logger.info("所有筛选已完成")
+                    logger.info("所有筛选已完成")
 
-                page_tiny = await page.locator('span[class*="search-page-tiny-page"]').first.text_content()
-                page_btn = await page.locator('div[class*="search-pagination-page-box"]').all()
+                    page_tiny = await page.locator('span[class*="search-page-tiny-page"]').first.text_content()
+                    page_btn = await page.locator('div[class*="search-pagination-page-box"]').all()
 
-                o_max_page = self.get_max_page(page_tiny)
-                max_page = min(o_max_page, max_pages)
+                    o_max_page = self.get_max_page(page_tiny)
+                    max_page = min(o_max_page, max_pages)
 
-                logger.info(f"共有 {o_max_page} 页，设置最大处理 {max_pages} 页，实际需处理 {max_page} 页")
+                    logger.info(f"共有 {o_max_page} 页，设置最大处理 {max_pages} 页，实际需处理 {max_page} 页")
 
-                for page_num in range(1, max_pages + 1):
-                    try:
-                        logger.info(f"正在处理第 {page_num}/{max_pages} 页")
-                        await page_btn[page_num - 1].click(delay=random.uniform(10, 20))
-                        await random_sleep(10, 20)
-                        product_list = await page.locator('a[class*="feeds-item-wrap"]').all()
-                        await self.process_product_list(product_list)
-                    except ValidationError:
-                        raise
-                    except Exception as e:
-                        logger.error(f"第 {page_num}/{max_pages} 页处理失败: {e}")
+                    for page_num in range(1, max_pages + 1):
+                        try:
+                            logger.info(f"正在处理第 {page_num}/{max_pages} 页")
+                            await page_btn[page_num - 1].click(delay=random.uniform(10, 20))
+                            await random_sleep(10, 20)
+                            product_list = await page.locator('a[class*="feeds-item-wrap"]').all()
+                            await self.process_product_list(product_list)
+                        except ValidationError:
+                            raise
+                        except Exception as e:
+                            logger.error(f"第 {page_num}/{max_pages} 页处理失败: {e}")
+
+                except ValidationError as e:
+                    logger.error("==================== CRITICAL BLOCK DETECTED ====================")
+                    logger.error(f"检测到闲鱼反爬虫验证 ({e})，程序将终止。")
+                    long_sleep_duration = random.randint(300, 600)
+                    logger.warning(f"为避免账户风险，将执行一次长时间休眠 ({long_sleep_duration} 秒) 后再退出...")
+                    await asyncio.sleep(long_sleep_duration)
+                    logger.info("长时间休眠结束，现在将安全退出。")
+                    logger.error("===================================================================")
+                    logger.info("触发闲鱼反爬虫机制，将关闭浏览器")
+                    ret_type = 'risk'
 
                 await self.browser.close()
 
-        except ValidationError as e:
-            logger.error("==================== CRITICAL BLOCK DETECTED ====================")
-            logger.error(f"检测到闲鱼反爬虫验证 ({e})，程序将终止。")
-            long_sleep_duration = random.randint(300, 600)
-            logger.warning(f"为避免账户风险，将执行一次长时间休眠 ({long_sleep_duration} 秒) 后再退出...")
-            await asyncio.sleep(long_sleep_duration)
-            logger.info("长时间休眠结束，现在将安全退出。")
-            logger.error("===================================================================")
-            logger.info("触发闲鱼反爬虫机制，将关闭浏览器")
-            ret_type = 'risk'
         except Exception as e:
             logger.error(f"程序发生错误: {e}")
             ret_type = 'abnormal'
