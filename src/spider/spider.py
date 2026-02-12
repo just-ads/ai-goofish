@@ -119,7 +119,7 @@ class GoofishSpider:
             logger.info("未检测到广告弹窗。")
 
     async def goto_and_expect(self, page: Page, page_url: str, url_or_predicate):
-        response_task = page.expect_response(url_or_predicate, timeout=60_000)
+        response_task = page.expect_response(url_or_predicate, timeout=15_000)
         await self.goto(page, page_url)
         async with response_task as response_info:
             response = await response_info.value
@@ -127,8 +127,6 @@ class GoofishSpider:
                 # 防止 body 读取阶段卡死, 反爬虫机制响应 header 成功但 body 永远传不完
                 data = await asyncio.wait_for(response.json(), timeout=2)
             except asyncio.TimeoutError:
-                os.makedirs('data/debug', exist_ok=True)
-                await page.screenshot(path="data/debug/screenshot.png")
                 await page.close()
                 raise ValidationError('body 解析超时')
             if "FAIL_SYS_USER_VALIDATE" in str(data):
@@ -178,6 +176,8 @@ class GoofishSpider:
                 logger.info(f"商品 {product_id} 已处理过，跳过")
                 continue
 
+            logger.info(f"获取商品 {product_id} 的详细信息")
+
             # 模拟用户操作得到新链接
             await item.dispatch_event('mousedown')
             await item.dispatch_event('mousemove')
@@ -201,7 +201,6 @@ class GoofishSpider:
 
             except TimeoutError:
                 logger.warning(f"超时：无法获取商品 {product_id} 的详细信息")
-                await detail_page.screenshot(path="data/debug/out_screenshot.png")
             except ValidationError:
                 raise
             except Exception as e:
