@@ -90,23 +90,18 @@ class GoofishSpider:
     async def check_anti_spider_dialog(page: Page):
         logger.info('检测反爬虫弹窗')
 
-        async def detect(selector, dialog_type):
-            await page.locator(selector).wait_for(state='visible', timeout=3_000)
-            return dialog_type
-
-        tasks = [
-            asyncio.create_task(detect("div.baxia-dialog-mask", "baxia-dialog")),
-            asyncio.create_task(detect("div.J_MIDDLEWARE_FRAME_WIDGET", "middleware-widget"))
+        dialogs = [
+            ("div.baxia-dialog-mask", "baxia-dialog"),
+            ("div.J_MIDDLEWARE_FRAME_WIDGET", "middleware-widget")
         ]
 
-        done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED, timeout=5_000)
-
-        detected = next((t.result() for t in done if t.result()), None)
-        for t in pending: t.cancel()
-
-        if detected:
-            logger.warning(f"当前页面检测到 {detected} 反爬虫验证弹窗")
-            return True
+        for selector, dialog_type in dialogs:
+            try:
+                await page.locator(selector).is_visible()
+                logger.warning(f"当前页面检测到 {dialog_type} 反爬虫验证弹窗")
+                return True
+            except TimeoutError:
+                pass
 
         logger.info("未检测到反爬虫弹窗")
         return False
@@ -124,12 +119,13 @@ class GoofishSpider:
             logger.info("未检测到广告弹窗。")
 
     async def goto_and_expect(self, page: Page, page_url: str, url_or_predicate):
-        async with page.expect_response(url_or_predicate, timeout=60_000) as response_info:
-            await self.goto(page, page_url)
+        response_task = page.expect_response(url_or_predicate, timeout=60000)
+        await self.goto(page, page_url)
+        async with response_task as response_info:
             response = await response_info.value
             try:
                 # 防止 body 读取阶段卡死, 反爬虫机制响应 header 成功但 body 永远传不完
-                data = await asyncio.wait_for(await response.json(), timeout=200)
+                data = await asyncio.wait_for(response.json(), timeout=200)
             except asyncio.TimeoutError:
                 raise ValidationError('body 解析超时')
             if "FAIL_SYS_USER_VALIDATE" in str(data):
