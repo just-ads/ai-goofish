@@ -125,10 +125,10 @@ class GoofishSpider:
             response = await response_info.value
             try:
                 # 防止 body 读取阶段卡死, 反爬虫机制响应 header 成功但 body 永远传不完
-                data = await asyncio.wait_for(response.json(), timeout=5)
+                data = await asyncio.wait_for(response.json(), timeout=2)
             except asyncio.TimeoutError:
                 os.makedirs('data/debug', exist_ok=True)
-                await page.screenshot(path="data/debug/screenshot.png", full_page=True)
+                await page.close()
                 raise ValidationError('body 解析超时')
             if "FAIL_SYS_USER_VALIDATE" in str(data):
                 raise ValidationError('FAIL_SYS_USER_VALIDATE')
