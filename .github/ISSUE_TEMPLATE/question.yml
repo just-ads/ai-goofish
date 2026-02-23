@@ -1,0 +1,41 @@
+name: "\u2753 问题咨询"
+description: "使用上遇到问题或需要帮助"
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请先查阅 README 和已有 Issue，确认你的问题没有被解答过。
+
+  - type: textarea
+    id: question
+    attributes:
+      label: 问题描述
+      description: 请清晰地描述你的问题。
+      placeholder: 例如：如何配置代理？如何对接自定义的 AI 模型？
+    validations:
+      required: true
+
+  - type: textarea
+    id: tried
+    attributes:
+      label: 已尝试的方法
+      description: 你已经尝试过哪些方法？
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: 运行环境
+      description: 如果与环境有关，请提供相关信息。
+      placeholder: |
+        - 操作系统：Windows 11 / Ubuntu 22.04 / macOS 14
+        - Python 版本：3.11
+        - 部署方式：本地运行 / Docker
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: 补充信息
+      description: 日志、截图、配置等。

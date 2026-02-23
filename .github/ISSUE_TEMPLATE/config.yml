@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: "\U0001F4D6 查看文档"
+    url: https://github.com/just-ads/ai-goofish/blob/main/README.md
+    about: 提问前请先阅读项目文档

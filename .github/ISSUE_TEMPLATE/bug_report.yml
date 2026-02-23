@@ -1,0 +1,107 @@
+name: "\U0001F41B Bug 报告"
+description: "报告一个 Bug 或异常行为"
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢你提交 Bug 报告！请尽量详细填写以下信息，帮助我们快速定位问题。
+
+  - type: dropdown
+    id: module
+    attributes:
+      label: 问题模块
+      description: 问题出现在哪个模块？
+      options:
+        - 爬虫 / 采集
+        - 后端 API
+        - 前端 WebUI
+        - 任务调度
+        - Agent 插件
+        - Model Provider
+        - 通知推送
+        - Docker / 部署
+        - 其他
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug 描述
+      description: 清晰简洁地描述这个 Bug 是什么。
+      placeholder: 例如：启动爬虫后，采集到第 3 页时报错退出...
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      description: 详细的复现步骤。
+      placeholder: |
+        1. 配置 tasks.json 添加一个监控任务
+        2. 运行 `python start_spider.py`
+        3. 等待采集到第 3 页
+        4. 出现报错
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望行为
+      description: 你认为正确的行为应该是什么？
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际行为
+      description: 实际发生了什么？请附上错误日志（如有）。
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 相关日志
+      description: 粘贴完整的错误日志或终端输出。
+      placeholder: 粘贴日志内容...
+      render: shell
+
+  - type: textarea
+    id: config
+    attributes:
+      label: 相关配置
+      description: 粘贴相关的配置内容，如 tasks.json 中的任务配置、app.config、ai.config、notifier.config 等（请脱敏，去除 API Key 等敏感信息）。
+      placeholder: |
+        // 示例：tasks.json 中的任务配置
+        {
+          "keyword": "iPhone 16",
+          "pages": 3,
+          "minPrice": 1000,
+          "maxPrice": 5000
+        }
+      render: json
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: 运行环境
+      description: 请提供你的运行环境信息。
+      placeholder: |
+        - 操作系统：Windows 11 / Ubuntu 22.04 / macOS 14
+        - Python 版本：3.11
+        - 部署方式：本地运行 / Docker
+        - 浏览器（如涉及 WebUI）：Chrome 120
+    validations:
+      required: true
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: 补充信息
+      description: 任何其他有助于排查的信息，如截图、配置片段等。
