@@ -360,14 +360,14 @@ class GoofishSpider:
                             logger.error(f"第 {page_num}/{max_pages} 页处理失败: {e}")
 
                 except ValidationError as e:
-                    logger.error("==================== CRITICAL BLOCK DETECTED ====================")
-                    logger.error(f"检测到闲鱼反爬虫验证 ({e})，程序将终止。")
+                    logger.warning("==================== CRITICAL BLOCK DETECTED ====================")
+                    logger.warning(f"检测到闲鱼反爬虫验证 ({e})，程序将终止。")
                     long_sleep_duration = random.randint(300, 600)
                     logger.warning(f"为避免账户风险，将执行一次长时间休眠 ({long_sleep_duration} 秒) 后再退出...")
                     await asyncio.sleep(long_sleep_duration)
-                    logger.info("长时间休眠结束，现在将安全退出。")
+                    logger.warning("长时间休眠结束，现在将安全退出。")
                     logger.error("===================================================================")
-                    logger.info("触发闲鱼反爬虫机制，将关闭浏览器")
+                    logger.warning("触发闲鱼反爬虫机制，将关闭浏览器")
                     ret_type = 'risk'
 
                 await self.browser.close()
