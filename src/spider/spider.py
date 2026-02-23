@@ -366,7 +366,7 @@ class GoofishSpider:
                     logger.warning(f"为避免账户风险，将执行一次长时间休眠 ({long_sleep_duration} 秒) 后再退出...")
                     await asyncio.sleep(long_sleep_duration)
                     logger.warning("长时间休眠结束，现在将安全退出。")
-                    logger.error("===================================================================")
+                    logger.warning("===================================================================")
                     logger.warning("触发闲鱼反爬虫机制，将关闭浏览器")
                     ret_type = 'risk'
 
