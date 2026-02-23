@@ -27,6 +27,14 @@ class WechatWebhookConfig(TypedDict):
     mentioned_mobile_list: NotRequired[List[str]]
 
 
-NotificationProvider = NtfyConfig | GotifyConfig | WechatWebhookConfig
+class ServerChanConfig(TypedDict):
+    """Server酱（ServerChan）配置"""
+    type: Literal["serverchan"]
+    sendkey: str
+    noip: NotRequired[bool]
+    channel: NotRequired[List[str]]
+    openid: NotRequired[str]
+
+NotificationProvider = NtfyConfig | GotifyConfig | WechatWebhookConfig | ServerChanConfig
 
 NotificationProviders = List[NotificationProvider]

@@ -4,6 +4,7 @@ from src.notify.config import get_enabled_notifiers
 from src.notify.gotify import GotifyNotifier
 from src.notify.ntfy import NtfyNotifier
 from src.notify.wechat_service import WechatWebhookNotifier
+from src.notify.serverchan import ServerChanNotifier
 from src.types import TaskResult, NotificationProvider, NotificationConfig, NotificationProviders
 
 
@@ -34,6 +35,8 @@ class NotificationManager:
             return GotifyNotifier(config)
         if notif_type == 'wechat':
             return WechatWebhookNotifier(config)
+        if notif_type == 'serverchan':
+            return ServerChanNotifier(config)
         return None
 
     @classmethod
