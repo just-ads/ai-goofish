@@ -8,6 +8,7 @@ class NtfyConfig(TypedDict):
     """Ntfy 配置"""
     type: Literal["ntfy"]
     url: str
+    message_template: NotRequired[str]
 
 
 class GotifyConfig(TypedDict):
@@ -15,16 +16,22 @@ class GotifyConfig(TypedDict):
     type: Literal["gotify"]
     url: str
     token: str
+    message_template: NotRequired[str]
 
 
 class WechatWebhookConfig(TypedDict):
-    """企业微信“消息推送（原群机器人）”Webhook 配置"""
+    """企业微信"消息推送（原群机器人）"Webhook 配置"""
     type: Literal["wechat"]
-    url: str
     key: str
-    msgtype: NotRequired[Literal["markdown", "text"]]
-    mentioned_list: NotRequired[List[str]]
-    mentioned_mobile_list: NotRequired[List[str]]
+    message_template: NotRequired[str]
+
+
+class WebhookConfig(TypedDict):
+    """通用 Webhook 配置"""
+    type: Literal["webhook"]
+    url: str
+    headers: NotRequired[str]
+    message_template: NotRequired[str]
 
 
 class ServerChanConfig(TypedDict):
@@ -34,7 +41,8 @@ class ServerChanConfig(TypedDict):
     noip: NotRequired[bool]
     channel: NotRequired[List[str]]
     openid: NotRequired[str]
+    message_template: NotRequired[str]
 
-NotificationProvider = NtfyConfig | GotifyConfig | WechatWebhookConfig | ServerChanConfig
+NotificationProvider = NtfyConfig | GotifyConfig | WechatWebhookConfig | ServerChanConfig | WebhookConfig
 
 NotificationProviders = List[NotificationProvider]

@@ -1,16 +1,18 @@
-from typing import Any
+from typing import Optional, List, Dict
 
+from src.notify.base import BaseNotifier
 from src.notify.config import get_enabled_notifiers
 from src.notify.gotify import GotifyNotifier
 from src.notify.ntfy import NtfyNotifier
 from src.notify.wechat_service import WechatWebhookNotifier
 from src.notify.serverchan import ServerChanNotifier
-from src.types import TaskResult, NotificationProvider, NotificationConfig, NotificationProviders
+from src.notify.webhook import WebhookNotifier
+from src.types import TaskResult, NotificationConfig
 
 
 class NotificationManager:
-    def __init__(self, providers: NotificationProviders, threshold: float = 60):
-        self.notifiers = []
+    def __init__(self, providers: List[Dict], threshold: float = 60):
+        self.notifiers: list[BaseNotifier] = []
         self.threshold = threshold
         if providers:
             for provider in providers:
@@ -27,7 +29,7 @@ class NotificationManager:
             notifier.send(task_result)
 
     @staticmethod
-    def create_notifier(config: NotificationProvider) -> Any:
+    def create_notifier(config: dict) -> Optional[BaseNotifier]:
         notif_type = config.get('type')
         if notif_type == 'ntfy':
             return NtfyNotifier(config)
@@ -37,6 +39,8 @@ class NotificationManager:
             return WechatWebhookNotifier(config)
         if notif_type == 'serverchan':
             return ServerChanNotifier(config)
+        if notif_type == 'webhook':
+            return WebhookNotifier(config)
         return None
 
     @classmethod

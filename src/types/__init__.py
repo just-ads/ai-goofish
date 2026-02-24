@@ -19,7 +19,7 @@ __all__ = [
     'Task', 'TaskResult', 'TaskResultHistory', 'TaskResultPagination', 'TaskLogEntry', 'TaskRecord',
 
     # Notify types
-    'NtfyConfig', 'GotifyConfig', 'WechatWebhookConfig', 'ServerChanConfig', 'NotificationProvider', 'NotificationProviders',
+    'NtfyConfig', 'GotifyConfig', 'WechatWebhookConfig', 'ServerChanConfig', 'WebhookConfig', 'NotificationProvider', 'NotificationProviders',
 
 
     # Server types
