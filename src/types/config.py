@@ -19,6 +19,7 @@ class NotificationConfig(TypedDict, total=False):
 class EvaluationStep(TypedDict, total=False):
     disabled: bool
     threshold: float
+    prompt: str
 
 
 class EvaluationSteps(TypedDict, total=False):

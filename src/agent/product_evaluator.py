@@ -25,6 +25,12 @@ class ProductEvaluator:
         self.steps_config = steps_config
         logger.debug("ProductEvaluator 初始化完成")
 
+    @staticmethod
+    def _render_prompt(template: str, step_config: Optional[EvaluationStep] = None) -> str:
+        """渲染 prompt 模板，将 {threshold} 替换为步骤阈值"""
+        threshold = (step_config or {}).get('threshold', 50)
+        return template.replace('{threshold}', str(int(threshold)))
+
     async def _ask_ai(self, prompt: MessageContent, use_image: bool = False) -> Dict[str, Any]:
         ai_client = self.image_ai_client if use_image else self.text_ai_client
         if ai_client is None:
@@ -72,14 +78,23 @@ class ProductEvaluator:
             logger.error(f"处理AI响应失败: {e}")
             raise RuntimeError(f"处理AI响应失败: {e}")
 
-    async def step_title_filter(self, product: Product, target_product: Dict[str, Any]) -> Dict[str, Any]:
+    async def step_title_filter(self, product: Product, target_product: Dict[str, Any], step_config: Optional[EvaluationStep] = None) -> Dict[str, Any]:
         """标题筛选，过滤不符合的商品"""
         logger.info(f"开始标题过滤: 目标商品={target_product.get('description', '未知')[:50]}...")
 
+        default_task = (
+            '根据商品标题判断是否为需求商品。规则：\n '
+            '1）标题明确不属于需求商品（如型号、品牌明显不同），建议度直接为0；\n '
+            '2）标题包含需求商品关键信息但部分规格未明确（如未标明容量、版本），视为相关，给予中等偏上建议度；\n '
+            '3）标题越接近需求商品完整描述，建议度越高'
+        )
+        task_prompt = (step_config or {}).get('prompt') or default_task
+        task_prompt = self._render_prompt(task_prompt, step_config)
+
         prompt = (
-            f'需求商品描述: {target_product.get('description')}\n'
-            '任务：根据以下商品标题评估商品是否为需求商品\n'
-            f'商品标题: {product.get('商品标题', '')[0:30]}\n'
+            f'需求商品描述: {target_product.get("description")}\n'
+            f'任务：{task_prompt}\n'
+            f'商品标题: {product.get("商品标题", "")[0:30]}\n'
         )
 
         reply = await self._ask_ai(prompt)
@@ -90,15 +105,25 @@ class ProductEvaluator:
         self.history.append({"step": "标题过滤", "reply": reply})
         return reply
 
-    async def step_product_analysis(self, product: Product, target_product: Dict[str, Any]):
+    async def step_product_analysis(self, product: Product, target_product: Dict[str, Any], step_config: Optional[EvaluationStep] = None):
         """商品详情评估"""
         logger.info(f"开始商品详情评估")
 
         product_info = dict_pick(dict(product), ['当前售价', '商品原价', '发布时间', '商品描述'])
 
+        default_task = (
+            '综合商品描述、发布时间等信息评估与需求的符合度。规则：\n '
+            '1）详情中明确不符合需求（如型号、规格矛盾），建议度直接为0；\n '
+            '2）其他情况按信息完整性打分，信息越接近需求商品建议度越高；\n '
+            '3）注意：商品原价可能为0，这属于正常情况，不应视为风险降低建议度。\n '
+            '建议度低于 {threshold} 将跳过后续评估'
+        )
+        task_prompt = (step_config or {}).get('prompt') or default_task
+        task_prompt = self._render_prompt(task_prompt, step_config)
+
         prompt = (
-            f'需求商品描述: {target_product.get('description')}'
-            '任务：评估商品可信度和与需求商品的符合度\n'
+            f'需求商品描述: {target_product.get("description")}\n'
+            f'任务：{task_prompt}\n'
             f'当前时间：{now_str()}\n'
             f'商品信息：: {json.dumps(product_info, ensure_ascii=False)}\n'
         )
@@ -110,15 +135,19 @@ class ProductEvaluator:
         self.history.append({"step": "商品详情分析", "reply": reply})
         return reply
 
-    async def step_seller_analysis(self, seller: Seller) -> Dict[str, Any]:
+    async def step_seller_analysis(self, seller: Seller, step_config: Optional[EvaluationStep] = None) -> Dict[str, Any]:
         """卖家可信度评估"""
         logger.info("开始卖家可信度评估")
 
         seller_info = seller.copy()
         seller_info.pop('卖家ID', None)
 
+        default_task = '分析卖家注册时长、历史评价、芝麻信用等信息，评估卖家可信度与交易风险'
+        task_prompt = (step_config or {}).get('prompt') or default_task
+        task_prompt = self._render_prompt(task_prompt, step_config)
+
         prompt = (
-            '任务：根据以下卖家信息建立卖家画像，评估卖家可信度\n'
+            f'任务：{task_prompt}\n'
             f'卖家信息: {json.dumps(seller_info, ensure_ascii=False)}\n'
         )
 
@@ -130,7 +159,7 @@ class ProductEvaluator:
         self.history.append({"step": "卖家评估", "reply": reply})
         return reply
 
-    async def step_image_analysis(self, product: Product):
+    async def step_image_analysis(self, product: Product, step_config: Optional[EvaluationStep] = None):
         """商品图片分析"""
         images = product.get("商品图片列表", [])
         if not images:
@@ -141,9 +170,18 @@ class ProductEvaluator:
         images = images[:max_images]
         logger.info(f"开始图片分析: 图片数量={len(images)}")
 
+        default_task = (
+            '分析商品图片，评估与描述的一致性。规则：\n '
+            '1）区分商品官方图（渲染图/宣传图）和卖家实拍图，官方图占比大则风险更高；\n '
+            '2）实拍图中可能包含其他物品，这属于正常情况，除非图片中完全不包含描述中的商品，否则不应降低建议度；\n '
+            '3）综合图片信息评估商品真实性与可信度'
+        )
+        task_prompt = (step_config or {}).get('prompt') or default_task
+        task_prompt = self._render_prompt(task_prompt, step_config)
+
         prompt = (
-            f'商品描述: {product.get('商品描述', '')}\n'
-            '任务：查看商品图片，并结合商品描述判断商品是否与商品描述一致、是否存在明显瑕疵或风险信号。\n'
+            f'商品描述: {product.get("商品描述", "")}\n'
+            f'任务：{task_prompt}\n'
         )
 
         user_content: MessageContent = [{"type": "text", "text": prompt}]
@@ -162,8 +200,8 @@ class ProductEvaluator:
         history = [it for it in self.history if it.get('step') != '标题过滤']
 
         prompt = (
-            f'需求商品描述: {target_product.get('description')} \n'
-            '任务：根据以下步骤分析结果，总结最终推荐度和意见 \n '
+            f'需求商品描述: {target_product.get("description")} \n'
+            f'任务：根据以下步骤分析结果，总结最终推荐度和意见 \n '
             f'步骤分析结果：{json.dumps(history, ensure_ascii=False)} \n'
         )
 
@@ -217,7 +255,7 @@ class ProductEvaluator:
         # Step 1: 标题过滤
         step1_config: EvaluationStep = steps_config.get('step1', {})
         if not step1_config.get('disabled', False):
-            step1 = await self.step_title_filter(product, target_product)
+            step1 = await self.step_title_filter(product, target_product, step1_config)
             suggestion1 = step1.get('suggestion', 0)
             if suggestion1 < step1_config.get('threshold', 30):
                 logger.warning(f"标题过滤未通过: suggestion={suggestion1}, 提前结束评估")
@@ -226,7 +264,7 @@ class ProductEvaluator:
         # Step 2: 商品详情评估
         step2_config: EvaluationStep = steps_config.get('step2', {})
         if not step2_config.get('disabled', False):
-            step2 = await self.step_product_analysis(product, target_product)
+            step2 = await self.step_product_analysis(product, target_product, step2_config)
             suggestion2 = step2.get('suggestion', 0)
             if suggestion2 < step2_config.get('threshold', 50):
                 logger.warning(f"商品符合度未通过: suggestion={suggestion2}, 提前结束评估")
@@ -235,7 +273,7 @@ class ProductEvaluator:
         # Step 3: 卖家可信度评估
         step3_config: EvaluationStep = steps_config.get('step3', {})
         if not step3_config.get('disabled', False):
-            step3 = await self.step_seller_analysis(seller)
+            step3 = await self.step_seller_analysis(seller, step3_config)
             suggestion3 = step3.get('suggestion', 0)
             if suggestion3 < step3_config.get('threshold', 50):
                 logger.warning(f"卖家评估未通过: suggestion={suggestion3}, 提前结束评估")
@@ -245,7 +283,7 @@ class ProductEvaluator:
         if self.image_ai_client:
             step4_config: EvaluationStep = steps_config.get('step4', {})
             if not step4_config.get('disabled', False):
-                step4 = await self.step_image_analysis(product)
+                step4 = await self.step_image_analysis(product, step4_config)
                 suggestion4 = step4.get('suggestion', 0)
                 if suggestion4 < step4_config.get('threshold', 50):
                     logger.warning(f"图片评估未通过: suggestion={suggestion4}, 提前结束评估")
