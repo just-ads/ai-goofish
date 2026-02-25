@@ -113,20 +113,22 @@ class GoofishSpider:
             raise ValidationError('反爬虫验证弹窗')
 
         try:
-            await page.click("div[class*='closeIconBg']", delay=random.uniform(10, 20), timeout=15_000)
+            await page.click("div[class*='closeIconBg']", delay=random.uniform(10, 20), timeout=10_000)
             logger.info("已关闭广告弹窗。")
         except TimeoutError:
             logger.info("未检测到广告弹窗。")
 
     async def goto_and_expect(self, page: Page, page_url: str, url_or_predicate):
-        response_task = page.expect_response(url_or_predicate, timeout=15_000)
+        response_task = page.expect_response(url_or_predicate, timeout=30_000)
         await self.goto(page, page_url)
         async with response_task as response_info:
             response = await response_info.value
             try:
                 # 防止 body 读取阶段卡死, 反爬虫机制响应 header 成功但 body 永远传不完
-                data = await asyncio.wait_for(response.json(), timeout=2)
+                data = await asyncio.wait_for(response.json(), timeout=5)
             except asyncio.TimeoutError:
+                content_length = response.headers.get('Content-Length', '未知')
+                logger.warning(f"body 解析超时, Header 中声明的 Body 长度为: {content_length}")
                 await page.close()
                 raise ValidationError('body 解析超时')
             if "FAIL_SYS_USER_VALIDATE" in str(data):
@@ -136,7 +138,7 @@ class GoofishSpider:
     async def process_seller(self, seller_info: Seller):
         """处理卖家信息"""
         seller_id = seller_info['卖家ID']
-        logger.info("开始采集用户ID: {} 的完整信息...", seller_id)
+        logger.info(f"开始采集用户ID: {seller_id} 的完整信息...")
         page = await self.browser_context.new_page()
 
         data = await self.goto_and_expect(
