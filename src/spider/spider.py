@@ -1,7 +1,9 @@
 import argparse
+import json
 import asyncio
 import os
 import random
+import zstandard
 import sys
 from typing import Literal, Optional, Tuple
 from urllib.parse import urlencode
@@ -20,8 +22,6 @@ from src.types import Seller, Task, TaskResult
 from src.utils.date import now_str
 from src.utils.logger import logger
 from src.utils.utils import random_sleep, extract_id_from_url_regex
-
-DETAIL_API_URL_PATTERN = 'h5api.m.goofish.com/h5/mtop.taobao.idle.pc.detail'
 
 
 class ValidationError(Exception):
@@ -107,27 +107,36 @@ class GoofishSpider:
         return False
 
     async def goto(self, page: Page, page_url: str):
-        await page.goto(page_url, wait_until="domcontentloaded", timeout=15_000)
+        await page.goto(page_url, wait_until="domcontentloaded", timeout=30_000)
 
         if await self.check_anti_spider_dialog(page):
             raise ValidationError('反爬虫验证弹窗')
 
         try:
-            await page.click("div[class*='closeIconBg']", delay=random.uniform(10, 20), timeout=10_000)
+            await page.click("div[class*='closeIconBg']", delay=random.uniform(10, 20), timeout=5_000)
             logger.info("已关闭广告弹窗。")
         except TimeoutError:
             logger.info("未检测到广告弹窗。")
 
+    @staticmethod
+    async def _parse_response_body(response) -> dict:
+        """解析响应 body，支持 content-encoding: zstd"""
+        encoding = response.headers.get('content-encoding', '')
+        if encoding == 'zstd':
+            raw = await response.body()
+            decompressed = zstandard.ZstdDecompressor().decompress(raw)
+            return json.loads(decompressed)
+        return await response.json()
+
     async def goto_and_expect(self, page: Page, page_url: str, url_or_predicate):
-        response_task = page.expect_response(url_or_predicate, timeout=30_000)
+        response_task = page.expect_response(url_or_predicate, timeout=45_000)
         await self.goto(page, page_url)
         async with response_task as response_info:
             response = await response_info.value
             try:
                 # 防止 body 读取阶段卡死, 反爬虫机制响应 header 成功但 body 永远传不完
-                data = await asyncio.wait_for(response.json(), timeout=5)
+                data = await asyncio.wait_for(self._parse_response_body(response), timeout=2)
             except asyncio.TimeoutError:
-                logger.warning(f"所有 Headers: {dict(response.headers)}")
                 content_length = response.headers.get('Content-Length', None)
                 risk_type = '未知'
                 if content_length:
@@ -205,7 +214,7 @@ class GoofishSpider:
                 data = await self.goto_and_expect(
                     page=detail_page,
                     page_url=real_url,
-                    url_or_predicate=lambda r: DETAIL_API_URL_PATTERN in r.url
+                    url_or_predicate=lambda r: 'h5api.m.goofish.com/h5/mtop.taobao.idle.pc.detail' in r.url
                 )
                 await self.process_product(data, base_product_info)
                 self.processed_ids.add(product_id)
