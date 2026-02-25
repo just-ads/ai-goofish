@@ -119,14 +119,51 @@ class GoofishSpider:
             logger.info("未检测到广告弹窗。")
 
     @staticmethod
-    async def _parse_response_body(response) -> dict:
-        """解析响应 body，支持 content-encoding: zstd"""
-        encoding = response.headers.get('content-encoding', '')
-        if encoding == 'zstd':
-            raw = await response.body()
-            decompressed = zstandard.ZstdDecompressor().decompress(raw)
-            return json.loads(decompressed)
-        return await response.json()
+    async def _parse_response_body(response):
+        """解析响应 body，增强对 zstd 的容错性"""
+        try:
+            raw = await asyncio.wait_for(response.body(), timeout=5)
+            if not raw:
+                return None
+
+            encoding = response.headers.get('content-encoding', '').lower()
+
+            if 'zstd' in encoding:
+                dctx = zstandard.ZstdDecompressor()
+                try:
+                    # 方案 A: 尝试直接解压
+                    decompressed = dctx.decompress(raw)
+                except zstandard.ZstdError:
+                    # 方案 B: 针对无法确定大小的 Frame Header，限制最大输出进行解压
+                    decompressed = dctx.decompress(raw, max_output_size=10 * 1024 * 1024)
+
+                data = json.loads(decompressed)
+            else:
+                data = json.loads(raw)
+
+            if "FAIL_SYS_USER_VALIDATE" in str(data):
+                raise ValidationError('FAIL_SYS_USER_VALIDATE')
+
+            return data
+
+        except asyncio.TimeoutError:
+            # 你原有的风险识别逻辑...
+            content_length = response.headers.get('Content-Length')
+            te = response.headers.get('Transfer-Encoding')
+
+            if content_length:
+                msg = f"超大body ({content_length} bytes)"
+            elif te == 'chunked':
+                msg = "HTTP 慢速陷阱"
+            else:
+                msg = "未知网络风险"
+
+            logger.error(f"解析超时: {msg}")
+            raise ValidationError(f'body 解析超时({msg})')
+
+        except Exception as e:
+            logger.error(f"解析异常: {str(e)}")
+            raise ValidationError(f"数据解析失败: {str(e)}")
 
     async def goto_and_expect(self, page: Page, page_url: str, url_or_predicate):
         response_task = page.expect_response(url_or_predicate, timeout=45_000)
@@ -134,23 +171,11 @@ class GoofishSpider:
         async with response_task as response_info:
             response = await response_info.value
             try:
-                # 防止 body 读取阶段卡死, 反爬虫机制响应 header 成功但 body 永远传不完
-                data = await asyncio.wait_for(self._parse_response_body(response), timeout=2)
-            except asyncio.TimeoutError:
-                content_length = response.headers.get('Content-Length', None)
-                risk_type = '未知'
-                if content_length:
-                    logger.warning(f"body 解析超时, Header 中声明的 Body 长度为: {content_length}")
-                    risk_type = '超大body'
-                else:
-                    te = response.headers.get('Transfer-Encoding')
-                    if te == 'chunked':
-                        logger.warning(f'body 解析超时, 服务器慢速攻击')
-                        risk_type = 'HTTP 慢速陷阱'
+                data = self._parse_response_body(response)
+            except ValidationError as e:
                 await page.close()
-                raise ValidationError(f'body 解析超时({risk_type})')
-            if "FAIL_SYS_USER_VALIDATE" in str(data):
-                raise ValidationError('FAIL_SYS_USER_VALIDATE')
+                raise e
+
             return data
 
     async def process_seller(self, seller_info: Seller):
