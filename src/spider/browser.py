@@ -57,7 +57,7 @@ async def check_browser_purity():
     headless = True if RUNNING_IN_DOCKER else config.browser_headless
     channel = 'chromium-headless-shell' if RUNNING_IN_DOCKER else config.browser_channel
     async with create_browser(headless=headless, channel=channel) as p:
-        page = await p.browser.new_page()
+        page = await p.context.new_page()
         await page.goto('https://bot.sannysoft.com/', wait_until="networkidle")
         await page.wait_for_timeout(1000)
         html_content = await page.content()
