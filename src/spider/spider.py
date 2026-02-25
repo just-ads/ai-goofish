@@ -122,7 +122,7 @@ class GoofishSpider:
     async def _parse_response_body(response):
         """解析响应 body，增强对 zstd 的容错性, 增加对『假压缩』的识别"""
         try:
-            raw = await asyncio.wait_for(response.body(), timeout=5)
+            raw = await asyncio.wait_for(response.body(), timeout=10)
             if not raw:
                 raise ValueError('接口获取数据出错')
 
