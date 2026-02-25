@@ -120,26 +120,27 @@ class GoofishSpider:
 
     @staticmethod
     async def _parse_response_body(response):
-        """解析响应 body，增强对 zstd 的容错性"""
+        """解析响应 body，增强对 zstd 的容错性, 增加对『假压缩』的识别"""
         try:
             raw = await asyncio.wait_for(response.body(), timeout=5)
             if not raw:
-                return None
+                raise ValueError('接口获取数据出错')
 
-            encoding = response.headers.get('content-encoding', '').lower()
-
-            if 'zstd' in encoding:
-                dctx = zstandard.ZstdDecompressor()
-                try:
-                    # 方案 A: 尝试直接解压
-                    decompressed = dctx.decompress(raw)
-                except zstandard.ZstdError:
-                    # 方案 B: 针对无法确定大小的 Frame Header，限制最大输出进行解压
-                    decompressed = dctx.decompress(raw, max_output_size=10 * 1024 * 1024)
-
-                data = json.loads(decompressed)
-            else:
+            if raw.startswith(b'\x7b') or raw.startswith(b'\x5b'):
                 data = json.loads(raw)
+            else:
+                encoding = response.headers.get('content-encoding', '').lower()
+                if 'zstd' in encoding:
+                    dctx = zstandard.ZstdDecompressor()
+                    try:
+                        # 方案 A: 尝试直接解压
+                        decompressed = dctx.decompress(raw)
+                    except zstandard.ZstdError:
+                        # 方案 B: 针对无法确定大小的 Frame Header，限制最大输出进行解压
+                        decompressed = dctx.decompress(raw, max_output_size=10 * 1024 * 1024)
+                    data = json.loads(decompressed)
+                else:
+                    data = json.loads(raw)
 
             if "FAIL_SYS_USER_VALIDATE" in str(data):
                 raise ValidationError('FAIL_SYS_USER_VALIDATE')
@@ -147,7 +148,6 @@ class GoofishSpider:
             return data
 
         except asyncio.TimeoutError:
-            # 你原有的风险识别逻辑...
             content_length = response.headers.get('Content-Length')
             te = response.headers.get('Transfer-Encoding')
 
@@ -171,7 +171,7 @@ class GoofishSpider:
         async with response_task as response_info:
             response = await response_info.value
             try:
-                data = self._parse_response_body(response)
+                data = await self._parse_response_body(response)
             except ValidationError as e:
                 await page.close()
                 raise e
