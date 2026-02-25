@@ -5,12 +5,13 @@ from contextlib import asynccontextmanager
 
 import uvicorn
 from fastapi import FastAPI, Request, HTTPException
-from starlette.responses import FileResponse
+from starlette.responses import FileResponse, HTMLResponse
 from starlette.staticfiles import StaticFiles
 
 from src.api.router import api_router
 from src.env import SECRET_KEY_FILE, SERVER_PORT, WEB_PASSWORD
 from src.server.scheduler import initialize_task_scheduler, shutdown_task_scheduler
+from src.spider.browser import check_browser_purity
 
 
 @asynccontextmanager
@@ -56,6 +57,22 @@ app.include_router(api_router)
 
 
 # ----------------- 前端路由 -----------------
+@app.get("/checkbrowse")
+async def check_browse_page(request: Request):
+    is_html_request = "text/html" in request.headers.get("accept", "").lower()
+    if is_html_request:
+        try:
+            html_content = await check_browser_purity()
+            return HTMLResponse(
+                content=html_content,
+                status_code=200
+            )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Browser check failed: {str(e)}")
+
+    raise HTTPException(status_code=404)
+
+
 @app.get("/{path:path}")
 async def index(request: Request, path: str):
     is_html_request = "text/html" in request.headers.get("accept", "").lower()

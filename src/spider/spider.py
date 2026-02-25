@@ -14,6 +14,7 @@ from src.agent.product_evaluator import ProductEvaluator
 from src.config import get_config_instance
 from src.env import STATE_FILE, RUNNING_IN_DOCKER
 from src.notify.notify_manger import NotificationManager
+from src.spider.browser import create_browser
 from src.spider.parsers import pares_product_info_and_seller_info, pares_seller_detail_info
 from src.task.record import add_task_record
 from src.task.result import save_task_result, get_result_filename, get_product_history_info
@@ -311,28 +312,10 @@ class GoofishSpider:
             last_processed_count = await self.get_history()
 
             ret_type: Literal['normal', 'abnormal', 'risk'] = 'normal'
-            async with async_playwright() as p:
+            async with create_browser(state_file=self.state_file, headless=self.browser_headless, channel=self.browser_channel) as p:
                 try:
-                    # 尽量模拟真实浏览器，不要使用 js 打补丁的方式
-                    self.browser = await p.chromium.launch(
-                        headless=self.browser_headless,
-                        channel=self.browser_channel
-                    )
-                    version = self.browser.version
-                    # 使用真实版本号
-                    user_agent = f'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{version.split('.')[0]} Safari/537.36'
-                    self.browser_context = await self.browser.new_context(
-                        storage_state=self.state_file,
-                        viewport={"width": 1920, "height": 957},
-                        screen={'width': 1920, 'height': 1080},
-                        device_scale_factor=1.0,
-                        user_agent=user_agent,
-                        is_mobile=False,
-                        has_touch=False,
-                        locale='zh-CN',
-                        timezone_id='Asia/Shanghai',
-                        permissions=["notifications"]
-                    )
+                    self.browser = p.browser
+                    self.browser_context = p.context
 
                     self.browser_context.set_default_timeout(30_000)
 
