@@ -11,7 +11,7 @@ from starlette.staticfiles import StaticFiles
 from src.api.router import api_router
 from src.env import SECRET_KEY_FILE, SERVER_PORT, WEB_PASSWORD
 from src.server.scheduler import initialize_task_scheduler, shutdown_task_scheduler
-from src.spider.browser import check_browser_purity
+from src.utils.browser import check_browser_purity
 
 
 @asynccontextmanager

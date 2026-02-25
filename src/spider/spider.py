@@ -8,13 +8,13 @@ import sys
 from typing import Literal, Optional, Tuple
 from urllib.parse import urlencode
 
-from playwright.async_api import async_playwright, Page, TimeoutError, Locator
+from playwright.async_api import Page, TimeoutError, Locator
 
 from src.agent.product_evaluator import ProductEvaluator
 from src.config import get_config_instance
 from src.env import STATE_FILE, RUNNING_IN_DOCKER
 from src.notify.notify_manger import NotificationManager
-from src.spider.browser import create_browser
+from src.utils.browser import create_browser
 from src.spider.parsers import pares_product_info_and_seller_info, pares_seller_detail_info
 from src.task.record import add_task_record
 from src.task.result import save_task_result, get_result_filename, get_product_history_info
