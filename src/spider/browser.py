@@ -1,9 +1,10 @@
 import os
 import re
-from typing import Optional
-from dataclasses import dataclass
 from contextlib import asynccontextmanager
-from playwright.async_api import async_playwright, Browser, BrowserContext, Playwright
+from dataclasses import dataclass
+from typing import Optional
+
+from playwright.async_api import async_playwright, Browser, BrowserContext
 
 from src.config import get_config_instance
 from src.env import RUNNING_IN_DOCKER
