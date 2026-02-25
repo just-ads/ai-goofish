@@ -312,7 +312,7 @@ class GoofishSpider:
             last_processed_count = await self.get_history()
 
             ret_type: Literal['normal', 'abnormal', 'risk'] = 'normal'
-            async with create_browser(state_file=self.state_file, headless=self.browser_headless, channel=self.browser_channel) as p:
+            async with create_browser(state_file=self.state_file) as p:
                 try:
                     self.browser = p.browser
                     self.browser_context = p.context

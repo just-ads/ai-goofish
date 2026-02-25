@@ -18,7 +18,11 @@ class BrowserInstance:
 
 
 @asynccontextmanager
-async def create_browser(state_file: Optional[str] = None, headless: bool = True, channel: str = "chrome"):
+async def create_browser(state_file: Optional[str] = None):
+    config = get_config_instance()
+    headless = True if RUNNING_IN_DOCKER else config.browser_headless
+    channel = 'chromium-headless-shell' if RUNNING_IN_DOCKER else config.browser_channel
+
     playwright = None
     browser = None
     context = None
@@ -54,10 +58,7 @@ async def create_browser(state_file: Optional[str] = None, headless: bool = True
 
 
 async def check_browser_purity():
-    config = get_config_instance()
-    headless = True if RUNNING_IN_DOCKER else config.browser_headless
-    channel = 'chromium-headless-shell' if RUNNING_IN_DOCKER else config.browser_channel
-    async with create_browser(headless=headless, channel=channel) as p:
+    async with create_browser() as p:
         page = await p.context.new_page()
         await page.goto('https://bot.sannysoft.com/', wait_until="networkidle")
         await page.wait_for_timeout(1000)
