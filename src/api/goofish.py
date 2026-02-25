@@ -6,6 +6,7 @@ import json
 import os
 from fastapi import APIRouter, HTTPException, Depends
 
+from src.account.verify import verify_login
 from src.api.auth import verify_token
 from src.api.utils import success_response
 from src.types import GoofishState
@@ -13,6 +14,7 @@ from src.env import STATE_FILE
 
 # 创建路由器
 router = APIRouter(prefix="/goofish", tags=["goofish"])
+
 
 # --------------- Goofish状态相关接口 ----------------
 @router.post("/state/save", dependencies=[Depends(verify_token)])
@@ -46,4 +48,4 @@ async def api_delete_goofish_state():
 @router.get('/status', dependencies=[Depends(verify_token)])
 async def api_get_goofish_status():
     """获取Goofish状态"""
-    return success_response("状态获取成功", os.path.exists(STATE_FILE))
+    return success_response("状态获取成功", await verify_login())
