@@ -97,7 +97,7 @@ class GoofishSpider:
 
         for selector, dialog_type in dialogs:
             try:
-                if await page.locator(selector).is_visible(timeout=2_000):
+                if await page.locator(selector).is_visible(timeout=4_000):
                     logger.warning(f"当前页面检测到 {dialog_type} 反爬虫验证弹窗")
                     return True
             except TimeoutError:
@@ -113,7 +113,7 @@ class GoofishSpider:
             raise ValidationError('反爬虫验证弹窗')
 
         try:
-            await page.click("div[class*='closeIconBg']", delay=random.uniform(10, 20), timeout=5_000)
+            await page.click("div[class*='closeIconBg']", delay=random.uniform(10, 20), timeout=4_000)
             logger.info("已关闭广告弹窗。")
         except TimeoutError:
             logger.info("未检测到广告弹窗。")
@@ -166,7 +166,7 @@ class GoofishSpider:
             raise ValidationError(f"数据解析失败: {str(e)}")
 
     async def goto_and_expect(self, page: Page, page_url: str, url_or_predicate):
-        response_task = page.expect_response(url_or_predicate, timeout=45_000)
+        response_task = page.expect_response(url_or_predicate, timeout=60_000)
         await self.goto(page, page_url)
         async with response_task as response_info:
             response = await response_info.value
