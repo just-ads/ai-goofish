@@ -388,13 +388,13 @@ class GoofishSpider:
                     page_btn = await page.locator('div[class*="search-pagination-page-box"]').all()
 
                     o_max_page = self.get_max_page(page_tiny)
-                    max_page = min(o_max_page, max_pages)
+                    c_max_pages = min(o_max_page, max_pages)
 
-                    logger.info(f"共有 {o_max_page} 页，设置最大处理 {max_pages} 页，实际需处理 {max_page} 页")
+                    logger.info(f"共有 {o_max_page} 页，设置最大处理 {max_pages} 页，实际需处理 {c_max_pages} 页")
 
-                    for page_num in range(1, max_pages + 1):
+                    for page_num in range(1, c_max_pages + 1):
                         try:
-                            logger.info(f"正在处理第 {page_num}/{max_pages} 页")
+                            logger.info(f"正在处理第 {page_num}/{c_max_pages} 页")
                             await page_btn[page_num - 1].click(delay=random.uniform(10, 20))
                             await random_sleep(10, 20)
                             product_list = await page.locator('a[class*="feeds-item-wrap"]').all()
@@ -402,7 +402,7 @@ class GoofishSpider:
                         except ValidationError:
                             raise
                         except Exception as e:
-                            logger.error(f"第 {page_num}/{max_pages} 页处理失败: {e}")
+                            logger.error(f"第 {page_num}/{c_max_pages} 页处理失败: {e}")
 
                 except ValidationError as e:
                     logger.warning("==================== CRITICAL BLOCK DETECTED ====================")
