@@ -127,6 +127,7 @@ class GoofishSpider:
                 # 防止 body 读取阶段卡死, 反爬虫机制响应 header 成功但 body 永远传不完
                 data = await asyncio.wait_for(response.json(), timeout=5)
             except asyncio.TimeoutError:
+                logger.warning(f"所有 Headers: {dict(response.headers)}")
                 content_length = response.headers.get('Content-Length', None)
                 risk_type = '未知'
                 if content_length:
