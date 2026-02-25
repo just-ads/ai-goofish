@@ -127,10 +127,18 @@ class GoofishSpider:
                 # 防止 body 读取阶段卡死, 反爬虫机制响应 header 成功但 body 永远传不完
                 data = await asyncio.wait_for(response.json(), timeout=5)
             except asyncio.TimeoutError:
-                content_length = response.headers.get('Content-Length', '未知')
-                logger.warning(f"body 解析超时, Header 中声明的 Body 长度为: {content_length}")
+                content_length = response.headers.get('Content-Length', None)
+                risk_type = '未知'
+                if content_length:
+                    logger.warning(f"body 解析超时, Header 中声明的 Body 长度为: {content_length}")
+                    risk_type = '超大body'
+                else:
+                    te = response.headers.get('Transfer-Encoding')
+                    if te == 'chunked':
+                        logger.warning(f'body 解析超时, 服务器慢速攻击')
+                        risk_type = 'HTTP 慢速陷阱'
                 await page.close()
-                raise ValidationError('body 解析超时')
+                raise ValidationError(f'body 解析超时({risk_type})')
             if "FAIL_SYS_USER_VALIDATE" in str(data):
                 raise ValidationError('FAIL_SYS_USER_VALIDATE')
             return data
