@@ -54,7 +54,6 @@ class GoofishSpider:
         self.state_file = state_file
         self.browser_headless = browser_headless
         self.browser_channel = browser_channel
-        self.browser = None
         self.browser_context = None
         self.crawl_time = now_str()
         self._init_output_filename()
@@ -89,35 +88,45 @@ class GoofishSpider:
 
     @staticmethod
     async def check_anti_spider_dialog(page: Page):
-        logger.info('检测反爬虫弹窗')
+        combined_selector = "div.baxia-dialog-mask, div.J_MIDDLEWARE_FRAME_WIDGET, #baxia-dialog-content"
+        try:
+            found_element = await page.wait_for_selector(
+                combined_selector,
+                state="visible",
+                timeout=4000
+            )
 
-        dialogs = [
-            ("div.baxia-dialog-mask", "baxia-dialog"),
-            ("div.J_MIDDLEWARE_FRAME_WIDGET", "middleware-widget")
-        ]
+            if found_element:
+                class_name = await found_element.get_attribute("class") or ""
+                dialog_type = "baxia" if "baxia" in class_name else "middleware"
 
-        for selector, dialog_type in dialogs:
-            try:
-                if await page.locator(selector).is_visible(timeout=4_000):
-                    logger.warning(f"当前页面检测到 {dialog_type} 反爬虫验证弹窗")
-                    return True
-            except TimeoutError:
-                pass
+                logger.warning(f"检测到 {dialog_type} 反爬虫弹窗")
+                raise ValidationError(f'触发反爬虫验证: {dialog_type}')
 
-        logger.info("未检测到反爬虫弹窗")
-        return False
+        except TimeoutError:
+            pass
+
+    @staticmethod
+    async def check_login_valid(page: Page):
+        try:
+            if await page.locator('div[class*="login-iframe"]').is_visible(timeout=4_000):
+                logger.warning(f'检测到登录弹窗')
+                raise ValidationError('登录失效')
+        except TimeoutError:
+            pass
 
     async def goto(self, page: Page, page_url: str):
         await page.goto(page_url, wait_until="domcontentloaded", timeout=30_000)
+        logger.info('检测爬虫弹窗.....')
+        await self.check_anti_spider_dialog(page)
+        logger.info('检查登录弹窗.....')
+        await self.check_login_valid(page)
 
-        if await self.check_anti_spider_dialog(page):
-            raise ValidationError('反爬虫验证弹窗')
-
-        try:
-            await page.click("div[class*='closeIconBg']", delay=random.uniform(10, 20), timeout=4_000)
-            logger.info("已关闭广告弹窗。")
-        except TimeoutError:
-            logger.info("未检测到广告弹窗。")
+        # try:
+        #     await page.click("div[class*='closeIconBg']", delay=random.uniform(10, 20), timeout=4_000)
+        #     logger.info("已关闭广告弹窗。")
+        # except TimeoutError:
+        #     logger.info("未检测到广告弹窗。")
 
     @staticmethod
     async def _parse_response_body(response):
@@ -314,10 +323,7 @@ class GoofishSpider:
             ret_type: Literal['normal', 'abnormal', 'risk'] = 'normal'
             async with create_browser(state_file=self.state_file) as p:
                 try:
-                    self.browser = p.browser
                     self.browser_context = p.context
-
-                    self.browser_context.set_default_timeout(30_000)
 
                     page = await self.browser_context.new_page()
 
@@ -397,8 +403,6 @@ class GoofishSpider:
                     logger.warning("===================================================================")
                     logger.warning("触发闲鱼反爬虫机制，将关闭浏览器")
                     ret_type = 'risk'
-
-                await self.browser.close()
 
         except Exception as e:
             logger.error(f"程序发生错误: {e}")

@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 from playwright.async_api import async_playwright, Browser, BrowserContext
+from playwright_stealth import Stealth
 
 from src.config import get_config_instance
 from src.env import RUNNING_IN_DOCKER
@@ -43,8 +44,17 @@ async def create_browser(state_file: Optional[str] = None):
             user_agent=user_agent,
             locale='zh-CN',
             timezone_id='Asia/Shanghai',
-            permissions=["notifications"]
+            extra_http_headers={
+                "Accept-Language": "zh-CN,zh;q=0.9",
+            }
         )
+
+        await Stealth(
+            navigator_languages_override=('zh-CN', 'zh'),
+            init_scripts_only=True
+        ).apply_stealth_async(context)
+
+        context.set_default_timeout(30_000)
 
         yield BrowserInstance(browser=browser, context=context)
 

@@ -10,3 +10,4 @@ python-dotenv~=1.2.1
 python-jose~=3.5.0
 python-multipart~=0.0.20
 zstandard~=0.25.0
+playwright-stealth~=2.0.2

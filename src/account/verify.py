@@ -6,9 +6,6 @@ from src.env import STATE_FILE
 async def verify_login():
     if not os.path.exists(STATE_FILE):
         return 0
-
-    
-
     return 1
 
     '''
