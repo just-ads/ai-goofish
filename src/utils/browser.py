@@ -1,3 +1,4 @@
+import asyncio
 import os
 import re
 from contextlib import asynccontextmanager
@@ -60,11 +61,15 @@ async def create_browser(state_file: Optional[str] = None):
 
     finally:
         if context:
+            if state_file:
+                await context.storage_state(path=state_file)
             await context.close()
         if browser:
             await browser.close()
         if playwright:
             await playwright.stop()
+
+        await asyncio.sleep(1)
 
 
 async def check_browser_purity():
