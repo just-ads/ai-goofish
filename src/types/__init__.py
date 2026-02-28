@@ -23,7 +23,7 @@ __all__ = [
 
 
     # Server types
-    'PaginationOptions', 'GoofishState',
+    'PaginationOptions', 'GoofishState', 'GoofishStartLoginRequest', 'GoofishSessionRequest', 'GoofishSmsCodeRequest', 'GoofishLoginRequest',
 
     # Enums
     'TaskResultSortBy'
