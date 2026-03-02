@@ -12,16 +12,17 @@ from src.api.router import api_router
 from src.env import SECRET_KEY_FILE, SERVER_PORT, WEB_PASSWORD
 from src.server.scheduler import initialize_task_scheduler, shutdown_task_scheduler
 from src.utils.browser import check_browser_purity
+from src.utils.logger import logger
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("Web服务器正在启动，正在加载所有任务...")
+    logger.info("Web服务器正在启动，正在加载所有任务...")
     await initialize_task_scheduler()
 
     yield
 
-    print("Web服务器正在关闭，正在终止所有爬虫进程...")
+    logger.info("Web服务器正在关闭，正在终止所有爬虫进程...")
     shutdown_task_scheduler()
 
 
@@ -84,7 +85,7 @@ async def index(request: Request, path: str):
 
 
 def start_server():
-    print(f"启动 Web 管理界面，请在浏览器访问 http://127.0.0.1:{SERVER_PORT}")
+    logger.info(f"启动 Web 管理界面，请在浏览器访问 http://127.0.0.1:{SERVER_PORT}")
     uvicorn.run(app, host="0.0.0.0", port=SERVER_PORT)
 
 

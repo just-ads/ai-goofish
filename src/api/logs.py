@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from src.api.auth import verify_token
 from src.api.utils import success_response
 from src.task.logs import get_task_logs
+from src.utils.logger import logger
 
 router = APIRouter(prefix='/logs', tags=['logs'])
 
@@ -27,7 +28,7 @@ async def api_get_task_logs(task_id: int, data: LogsRequest):
     except HTTPException:
         raise
     except Exception as e:
-        print(f"获取任务日志失败: {e}")
+        logger.error(f"获取任务日志失败: {e}")
         raise HTTPException(status_code=500, detail="获取任务日志失败")
 
 # @router.websocket()

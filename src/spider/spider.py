@@ -123,9 +123,9 @@ class GoofishSpider:
 
     async def goto(self, page: Page, page_url: str):
         await page.goto(page_url, wait_until="domcontentloaded", timeout=30_000)
-        logger.info('检测爬虫弹窗.....')
+        logger.debug('检测爬虫弹窗')
         await self.check_anti_spider_dialog(page)
-        logger.info('检查登录弹窗.....')
+        logger.debug('检查登录弹窗')
         await self.check_login_valid(page)
 
         # try:
@@ -245,7 +245,7 @@ class GoofishSpider:
             await item.dispatch_event('mouseup')
 
             real_url = await item.get_attribute('href')
-            logger.debug(f"真实点击链接: {real_url}")
+            logger.debug(f"真实点击链接已获取: url={real_url}")
 
             try:
                 base_product_info = {

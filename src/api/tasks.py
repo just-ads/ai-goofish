@@ -18,6 +18,7 @@ from src.server.scheduler import (
 from src.task.record import get_task_record
 from src.task.task import get_tasks, add_task, update_task, get_task, remove_task
 from src.types import Task
+from src.utils.logger import logger
 
 # 创建路由器
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -89,7 +90,8 @@ async def api_get_tasks_status():
     try:
         data = get_all_running_tasks()
         return success_response('请求成功', data)
-    except Exception:
+    except Exception as e:
+        logger.error(f"任务状态检测失败: {e}")
         raise HTTPException(status_code=500, detail="任务状态检测失败")
 
 
@@ -98,7 +100,8 @@ async def api_get_task_status(task_id: int):
     """获取单个任务状态"""
     try:
         return success_response("任务状态检测", get_task_status(task_id))
-    except Exception:
+    except Exception as e:
+        logger.error(f"任务 {task_id} 状态检测失败: {e}")
         raise HTTPException(status_code=500, detail="任务状态检测失败")
 
 
@@ -118,7 +121,8 @@ async def api_get_tasks():
             task['run_record'] = task_record
 
         return success_response("任务获取成功", tasks)
-    except Exception:
+    except Exception as e:
+        logger.error(f"读取任务配置失败: {e}")
         raise HTTPException(status_code=500, detail="读取任务配置时发生错误")
 
 
@@ -135,7 +139,8 @@ async def api_create_task(req: Task):
         return success_response("任务创建成功", task)
     except HTTPException:
         raise
-    except Exception:
+    except Exception as e:
+        logger.error(f"创建任务失败: {e}")
         raise HTTPException(status_code=500, detail="创建失败")
 
 
@@ -156,7 +161,8 @@ async def api_get_task(task_id: int):
         return success_response("任务获取成功", task)
     except HTTPException:
         raise
-    except Exception:
+    except Exception as e:
+        logger.error(f"获取任务 {task_id} 失败: {e}")
         raise HTTPException(status_code=500, detail="获取失败")
 
 
@@ -194,7 +200,7 @@ async def api_update_task(req: Task):
     except HTTPException:
         raise
     except Exception as e:
-        print(f"更新任务失败: {e}")
+        logger.error(f"更新任务失败: {e}")
         raise HTTPException(status_code=500, detail="更新任务失败")
 
 
@@ -205,7 +211,8 @@ async def api_remove_task(task_id: int):
         remove_task_from_scheduler(task_id)
         await remove_task(task_id)
         return success_response("任务删除成功")
-    except Exception:
+    except Exception as e:
+        logger.error(f"删除任务 {task_id} 失败: {e}")
         raise HTTPException(status_code=500, detail="更新删除失败")
 
 
@@ -228,7 +235,8 @@ async def api_run_task(task_id: int):
         asyncio.create_task(run_task(task_id_val, task_name))
 
         return success_response("任务启动中", {"task_id": task_id, "running": True})
-    except Exception:
+    except Exception as e:
+        logger.error(f"运行任务 {task_id} 失败: {e}")
         raise HTTPException(status_code=500, detail="任务运行失败")
 
 
@@ -238,5 +246,6 @@ async def api_stop_task(task_id: int):
     try:
         stop_task(task_id)
         return success_response("任务停止成功")
-    except Exception:
+    except Exception as e:
+        logger.error(f"停止任务 {task_id} 失败: {e}")
         raise HTTPException(status_code=500, detail="任务停止失败")

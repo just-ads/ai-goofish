@@ -7,6 +7,7 @@ import aiofiles
 
 from src.env import RESULT_DIR
 from src.types import TaskResultSortBy, TaskResultHistory, TaskResultPagination, TaskResult
+from src.utils.logger import logger
 from src.utils.utils import clean_price
 
 
@@ -22,14 +23,19 @@ def save_task_result(task_id: int, data_record: TaskResult):
             f.write(json.dumps(data_record, ensure_ascii=False) + "\n")
         return True
     except IOError as e:
-        print(f"写入文件 {filename} 出错: {e}")
+        logger.error(f"写入文件 {filename} 出错: {e}")
         return False
 
 
 def remove_task_result(task_id: int):
     filename = get_result_filename(task_id)
-    if os.path.exists(filename):
+    if not os.path.exists(filename):
+        return
+
+    try:
         os.remove(filename)
+    except OSError as e:
+        logger.error(f"删除任务结果文件失败: task_id={task_id}, error={e}")
 
 
 async def get_task_result(

@@ -8,6 +8,7 @@ from playwright.async_api import async_playwright, Browser, BrowserContext, Play
 
 from src.config import get_config_instance
 from src.env import RUNNING_IN_DOCKER
+from src.utils.logger import logger
 
 
 @dataclass
@@ -77,7 +78,7 @@ class BrowserManager:
             if self.playwright:
                 await self.playwright.stop()
         except Exception as e:
-            print(f"Error during browser cleanup: {e}")
+            logger.error(f"浏览器清理时发生错误: {e}")
         finally:
             await asyncio.sleep(1)
 

@@ -260,12 +260,15 @@ def get_all_running_tasks() -> dict[int, bool]:
 
 async def run_task(task_id: int, task_name: str):
     start_time = asyncio.get_event_loop().time()
+    logs_file = get_logs_file_name(task_id)
     logger.info(f"定时任务触发: 正在为任务 '{task_name}' (ID: {task_id}) 启动爬虫...")
     logger.info(f"任务执行开始时间: {now_str()}")
+    logger.info_file(logs_file, f"任务触发执行: name={task_name}, id={task_id}")
 
     if is_task_running(task_id):
         logger.warning(f"任务 '{task_name}' (ID: {task_id}) 已在运行中，跳过此次执行")
         logger.info(f"跳过执行原因: 任务已在运行状态，PID={scraper_processes.get(task_id)}")
+        logger.warning_file(logs_file, f"任务跳过: 任务已在运行中, id={task_id}")
         return
 
     running_tasks[task_id] = True
@@ -280,7 +283,6 @@ async def run_task(task_id: int, task_name: str):
 
             logger.info(f"当前并发任务数: {MAX_CONCURRENT_TASKS - semaphore._value}/{MAX_CONCURRENT_TASKS}")
             logger.info(f"启动子进程执行爬虫: 任务ID={task_id}")
-            logs_file = get_logs_file_name(task_id)
             logger.debug(f"日志文件路径: {logs_file}")
             trim_log_file(logs_file, MAX_LOG_SIZE)
 
@@ -294,18 +296,22 @@ async def run_task(task_id: int, task_name: str):
             scraper_processes[task_id] = process.pid
             logger.info(f"爬虫子进程已启动: PID={process.pid}, 任务ID={task_id}")
             logger.info(f"子进程命令: {sys.executable} -u start_spider.py --task-id {task_id}")
+            logger.info_file(logs_file, f"子进程已启动: pid={process.pid}, task_id={task_id}")
 
             return_code = await process.wait()
             execution_time = asyncio.get_event_loop().time() - start_time
 
             if return_code == 0:
                 logger.info(f"任务 '{task_name}' (ID: {task_id}) 执行成功，退出码: {return_code}, 执行耗时: {execution_time:.2f}秒")
+                logger.info_file(logs_file, f"任务执行成功: exit_code={return_code}, duration={execution_time:.2f}s")
             else:
                 logger.warning(f"任务 '{task_name}' (ID: {task_id}) 执行异常，退出码: {return_code}, 执行耗时: {execution_time:.2f}秒")
+                logger.warning_file(logs_file, f"任务执行异常: exit_code={return_code}, duration={execution_time:.2f}s")
 
     except asyncio.CancelledError:
         execution_time = asyncio.get_event_loop().time() - start_time
         logger.warning(f"任务 '{task_name}' (ID: {task_id}) 被取消，执行耗时: {execution_time:.2f}秒")
+        logger.warning_file(logs_file, f"任务被取消: duration={execution_time:.2f}s")
         if task_id in scraper_processes:
             terminate_process(task_id)
         raise
@@ -313,11 +319,13 @@ async def run_task(task_id: int, task_name: str):
         execution_time = asyncio.get_event_loop().time() - start_time
         logger.error(f"执行任务 '{task_name}' (ID: {task_id}) 时发生错误: {e}, 执行耗时: {execution_time:.2f}秒")
         logger.error(f"错误详情: {type(e).__name__}: {str(e)}")
+        logger.error_file(logs_file, f"任务执行错误: {type(e).__name__}: {e}, duration={execution_time:.2f}s")
         raise
     finally:
         running_tasks.pop(task_id, None)
         scraper_processes.pop(task_id, None)
         logger.info(f"任务 {task_id} 执行完成，状态已清理，总耗时: {(asyncio.get_event_loop().time() - start_time):.2f}秒")
+        logger.info_file(logs_file, f"任务执行结束: task_id={task_id}, total_duration={(asyncio.get_event_loop().time() - start_time):.2f}s")
 
 
 def get_scheduler_status():
