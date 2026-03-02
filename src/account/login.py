@@ -3,7 +3,7 @@ import base64
 import uuid
 from typing import Any, Dict, Optional
 
-from playwright.async_api import TimeoutError
+from playwright.async_api import TimeoutError, Page
 
 from src.env import STATE_FILE
 from src.utils.browser import create_browser
@@ -53,6 +53,41 @@ async def _get_session(session_id: str) -> Dict[str, Any]:
     return session
 
 
+async def try_auto_login(page: Page):
+    # 可能会自动弹出登录弹窗
+    login_modal = page.locator(LOGIN_MODAL_SELECTOR)
+    try:
+        await login_modal.wait_for(state="visible", timeout=2_000)
+    except TimeoutError:
+        # 没自动弹出，手动点击登录
+        try:
+            login_btn = page.locator('div[class*="user-order-container"]').get_by_role("link", name="登录")
+            await login_btn.click(timeout=500)
+            await login_modal.wait_for(state="visible", timeout=500)
+        # 可能已经登录了，登录并没有失效
+        except TimeoutError:
+            return True
+
+    # 手机号登录的过期可能会自动登录，等待2s自动登录
+    await page.wait_for_timeout(2_000)
+    # 检查是否已经自动登录
+    if not await login_modal.is_visible():
+        return True
+
+    frame = page.frame_locator(LOGIN_FRAME_SELECTOR)
+
+    # 可能有快速进入按钮
+    try:
+        quick_button = frame.get_by_text('快速进入')
+        await quick_button.wait_for(state="visible", timeout=500)
+        await quick_button.click()
+        await page.wait_for_timeout(1_000)
+        if not await login_modal.is_visible():
+            return True
+    except TimeoutError:
+        return False
+
+
 async def start_login(timeout_seconds: int = DEFAULT_LOGIN_TIMEOUT_SECONDS):
     timeout_seconds = max(10, int(timeout_seconds or DEFAULT_LOGIN_TIMEOUT_SECONDS))
 
@@ -73,28 +108,7 @@ async def start_login(timeout_seconds: int = DEFAULT_LOGIN_TIMEOUT_SECONDS):
             "timeout_task": timeout_task,
         }
 
-        # 可能会自动弹出登录弹窗
-        login_modal = page.locator(LOGIN_MODAL_SELECTOR)
-        try:
-            await login_modal.wait_for(state="visible", timeout=2_000)
-        except TimeoutError:
-            # 没自动弹出，手动点击登录
-            try:
-                login_btn = page.locator('div[class*="user-order-container"]').get_by_role("link", name="登录")
-                await login_btn.click(timeout=500)
-                await login_modal.wait_for(state="visible", timeout=500)
-            # 可能已经登录了，登录并没有失效
-            except TimeoutError:
-                return {
-                    "session_id": session_id,
-                    "login_mode": "auto",
-                    "timeout_seconds": timeout_seconds,
-                }
-
-        # 手机号登录的过期可能会自动登录，等待2s自动登录
-        await page.wait_for_timeout(2_000)
-        # 检查是否已经自动登录
-        if not await login_modal.is_visible():
+        if await try_auto_login(page):
             return {
                 "session_id": session_id,
                 "login_mode": "auto",
@@ -102,19 +116,6 @@ async def start_login(timeout_seconds: int = DEFAULT_LOGIN_TIMEOUT_SECONDS):
             }
 
         frame = page.frame_locator(LOGIN_FRAME_SELECTOR)
-
-        # 可能有快速进入按钮
-        try:
-            quick_button = frame.get_by_text('快速进入')
-            await quick_button.wait_for(state="visible", timeout=500)
-            await quick_button.click()
-            return {
-                "session_id": session_id,
-                "login_mode": "auto",
-                "timeout_seconds": timeout_seconds,
-            }
-        except TimeoutError:
-            pass
 
         active_sessions[session_id]["login_frame"] = frame
 

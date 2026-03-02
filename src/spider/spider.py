@@ -10,6 +10,7 @@ from urllib.parse import urlencode
 
 from playwright.async_api import Page, TimeoutError, Locator
 
+from src.account.login import try_auto_login
 from src.agent.product_evaluator import ProductEvaluator
 from src.config import get_config_instance
 from src.env import STATE_FILE, RUNNING_IN_DOCKER
@@ -93,7 +94,7 @@ class GoofishSpider:
             found_element = await page.wait_for_selector(
                 combined_selector,
                 state="visible",
-                timeout=4000
+                timeout=3_000
             )
 
             if found_element:
@@ -108,9 +109,14 @@ class GoofishSpider:
 
     @staticmethod
     async def check_login_valid(page: Page):
+        login_modal = page.locator('div[class*="login-modal-wrap"]')
         try:
-            if await page.locator('div[class*="login-iframe"]').is_visible(timeout=4_000):
+            if await login_modal.is_visible():
                 logger.warning(f'检测到登录弹窗')
+                logger.info('尝试自动登录...')
+                if await try_auto_login(page):
+                    logger.info('自动登录成功')
+                    return
                 raise ValidationError('登录失效')
         except TimeoutError:
             pass
