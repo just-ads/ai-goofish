@@ -33,7 +33,7 @@ def format_registration_days(total_days: int) -> str:
         return "来闲鱼不足一个月"
 
 
-def pares_product_info_and_seller_info(
+def parse_product_info_and_seller_info(
         data: Dict[str, Any],
         base_product_info: Dict[str, Any]
 ) -> tuple[Product, Seller]:
@@ -86,7 +86,7 @@ def pares_product_info_and_seller_info(
     return product_info, seller_info
 
 
-def pares_seller_detail_info(data: Dict[str, Any], base_data: Seller) -> Seller:
+def parse_seller_detail_info(data: Dict[str, Any], base_data: Seller) -> Seller:
     module = safe_get(data, 'data', 'module', default={})
     base = safe_get(module, 'base')
     seller_introduction = safe_get(base, 'introduction', default='暂无')

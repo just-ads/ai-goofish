@@ -13,7 +13,7 @@ from src.notify.config import (
     add_notifier_config, update_notifier_config,
     remove_notifier_config
 )
-from src.notify.notify_manger import NotificationManager
+from src.notify.notify_manager import NotificationManager
 from src.notify.template import get_notifier_templates
 from src.utils.secrecy import secrecy_value, is_secrecy_value
 

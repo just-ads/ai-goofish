@@ -14,9 +14,9 @@ from src.account.login import try_auto_login
 from src.agent.product_evaluator import ProductEvaluator
 from src.config import get_config_instance
 from src.env import STATE_FILE, RUNNING_IN_DOCKER
-from src.notify.notify_manger import NotificationManager
+from src.notify.notify_manager import NotificationManager
 from src.utils.browser import create_browser
-from src.spider.parsers import pares_product_info_and_seller_info, pares_seller_detail_info
+from src.spider.parsers import parse_product_info_and_seller_info, parse_seller_detail_info
 from src.task.record import add_task_record
 from src.task.result import save_task_result, get_result_filename, get_product_history_info
 from src.task.task import get_tasks
@@ -205,7 +205,7 @@ class GoofishSpider:
             page_url=f"https://www.goofish.com/personal?userId={seller_id}",
             url_or_predicate=lambda r: "mtop.idle.web.user.page.head" in r.url
         )
-        seller_info = pares_seller_detail_info(data, seller_info)
+        seller_info = parse_seller_detail_info(data, seller_info)
 
         await random_sleep(5, 10)
         await page.close()
@@ -277,7 +277,7 @@ class GoofishSpider:
         product_id = base_product_info.get('product_id')
         logger.info(f"开始处理商品 {product_id}")
 
-        product_info, seller_base_info = pares_product_info_and_seller_info(product_api_data, base_product_info)
+        product_info, seller_base_info = parse_product_info_and_seller_info(product_api_data, base_product_info)
 
         seller_info = await self.process_seller(seller_base_info)
 
